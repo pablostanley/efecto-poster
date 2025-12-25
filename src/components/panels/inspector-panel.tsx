@@ -14,7 +14,23 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { cn } from "@/lib/utils"
-import { CaretDown, CaretRight, Plus, GridFour } from "@phosphor-icons/react"
+import {
+  CaretDown,
+  CaretRight,
+  Plus,
+  ArrowLineLeft,
+  ArrowLineRight,
+  ArrowsHorizontal,
+  ArrowLineUp,
+  ArrowLineDown,
+  ArrowsVertical,
+  ArrowsClockwise,
+  FlipHorizontal,
+  FlipVertical,
+  LinkSimple,
+  Eye,
+  Minus,
+} from "@phosphor-icons/react"
 import type { EffectType, Layer } from "@/lib/types"
 
 interface CollapsibleSectionProps {
@@ -259,6 +275,32 @@ function ArtboardInspector({
   )
 }
 
+// Alignment button component
+function AlignButton({
+  icon: Icon,
+  active,
+  onClick,
+  title,
+}: {
+  icon: React.ElementType
+  active?: boolean
+  onClick: () => void
+  title: string
+}) {
+  return (
+    <button
+      onClick={onClick}
+      title={title}
+      className={cn(
+        "p-1.5 rounded hover:bg-muted transition-colors",
+        active && "bg-muted"
+      )}
+    >
+      <Icon className="w-4 h-4" />
+    </button>
+  )
+}
+
 function LayerInspector({
   layer,
   artboardId,
@@ -272,9 +314,48 @@ function LayerInspector({
     <>
       {/* Position */}
       <CollapsibleSection title="Position">
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <Label className="text-xs text-muted-foreground">X</Label>
+        {/* Alignment buttons */}
+        <div className="flex items-center gap-1 justify-between">
+          <div className="flex items-center bg-muted/50 rounded p-0.5">
+            <AlignButton
+              icon={ArrowLineLeft}
+              onClick={() => {}}
+              title="Align left"
+            />
+            <AlignButton
+              icon={ArrowsHorizontal}
+              onClick={() => {}}
+              title="Align center horizontally"
+            />
+            <AlignButton
+              icon={ArrowLineRight}
+              onClick={() => {}}
+              title="Align right"
+            />
+          </div>
+          <div className="flex items-center bg-muted/50 rounded p-0.5">
+            <AlignButton
+              icon={ArrowLineUp}
+              onClick={() => {}}
+              title="Align top"
+            />
+            <AlignButton
+              icon={ArrowsVertical}
+              onClick={() => {}}
+              title="Align center vertically"
+            />
+            <AlignButton
+              icon={ArrowLineDown}
+              onClick={() => {}}
+              title="Align bottom"
+            />
+          </div>
+        </div>
+
+        {/* X/Y inputs */}
+        <div className="grid grid-cols-2 gap-2">
+          <div className="relative">
+            <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">X</span>
             <Input
               type="number"
               value={layer.transform.x}
@@ -283,11 +364,11 @@ function LayerInspector({
                   transform: { ...layer.transform, x: parseFloat(e.target.value) || 0 },
                 })
               }
-              className="h-8 mt-1"
+              className="h-8 pl-6 font-mono text-sm"
             />
           </div>
-          <div>
-            <Label className="text-xs text-muted-foreground">Y</Label>
+          <div className="relative">
+            <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">Y</span>
             <Input
               type="number"
               value={layer.transform.y}
@@ -296,87 +377,112 @@ function LayerInspector({
                   transform: { ...layer.transform, y: parseFloat(e.target.value) || 0 },
                 })
               }
-              className="h-8 mt-1"
+              className="h-8 pl-6 font-mono text-sm"
             />
           </div>
         </div>
-      </CollapsibleSection>
 
-      {/* Size */}
-      <CollapsibleSection title="Size">
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <Label className="text-xs text-muted-foreground">Scale</Label>
-            <div className="flex items-center gap-2 mt-1">
-              <Slider
-                value={[layer.transform.scale * 100]}
-                onValueChange={([value]) =>
-                  updateLayer(artboardId, layer.id, {
-                    transform: { ...layer.transform, scale: value / 100 },
-                  })
-                }
-                min={10}
-                max={200}
-                step={1}
-                className="flex-1"
-              />
-              <span className="text-xs font-mono w-10 text-right">
-                {Math.round(layer.transform.scale * 100)}%
-              </span>
-            </div>
-          </div>
-          <div>
-            <Label className="text-xs text-muted-foreground">Rotation</Label>
-            <div className="flex items-center gap-2 mt-1">
-              <Slider
-                value={[layer.transform.rotation]}
-                onValueChange={([value]) =>
-                  updateLayer(artboardId, layer.id, {
-                    transform: { ...layer.transform, rotation: value },
-                  })
-                }
-                min={-180}
-                max={180}
-                step={1}
-                className="flex-1"
-              />
-              <span className="text-xs font-mono w-10 text-right">
-                {Math.round(layer.transform.rotation)}°
-              </span>
-            </div>
-          </div>
-        </div>
-      </CollapsibleSection>
-
-      {/* Styles */}
-      <CollapsibleSection title="Styles">
-        <div>
-          <Label className="text-xs text-muted-foreground">Opacity</Label>
-          <div className="flex items-center gap-2 mt-1">
-            <Slider
-              value={[layer.opacity * 100]}
-              onValueChange={([value]) =>
-                updateLayer(artboardId, layer.id, { opacity: value / 100 })
+        {/* Rotation and flip */}
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1">
+            <ArrowsClockwise className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+            <Input
+              type="number"
+              value={layer.transform.rotation}
+              onChange={(e) =>
+                updateLayer(artboardId, layer.id, {
+                  transform: { ...layer.transform, rotation: parseFloat(e.target.value) || 0 },
+                })
               }
-              min={0}
-              max={100}
-              step={1}
-              className="flex-1"
+              className="h-8 pl-7 pr-6 font-mono text-sm"
             />
-            <span className="text-xs font-mono w-10 text-right">
-              {Math.round(layer.opacity * 100)}%
-            </span>
+            <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">°</span>
+          </div>
+          <div className="flex items-center bg-muted/50 rounded p-0.5">
+            <AlignButton
+              icon={FlipHorizontal}
+              onClick={() => {}}
+              title="Flip horizontal"
+            />
+            <AlignButton
+              icon={FlipVertical}
+              onClick={() => {}}
+              title="Flip vertical"
+            />
+          </div>
+        </div>
+      </CollapsibleSection>
+
+      {/* Layout (Size) */}
+      <CollapsibleSection title="Layout">
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1">
+            <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">W</span>
+            <Input
+              type="number"
+              value={Math.round(layer.transform.scale * 100)}
+              onChange={(e) =>
+                updateLayer(artboardId, layer.id, {
+                  transform: { ...layer.transform, scale: (parseFloat(e.target.value) || 100) / 100 },
+                })
+              }
+              className="h-8 pl-7 font-mono text-sm"
+            />
+          </div>
+          <button className="p-1 hover:bg-muted rounded" title="Link dimensions">
+            <LinkSimple className="w-4 h-4 text-muted-foreground" />
+          </button>
+          <div className="relative flex-1">
+            <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">H</span>
+            <Input
+              type="number"
+              value={Math.round(layer.transform.scale * 100)}
+              onChange={(e) =>
+                updateLayer(artboardId, layer.id, {
+                  transform: { ...layer.transform, scale: (parseFloat(e.target.value) || 100) / 100 },
+                })
+              }
+              className="h-8 pl-7 font-mono text-sm"
+            />
+          </div>
+        </div>
+      </CollapsibleSection>
+
+      {/* Appearance */}
+      <CollapsibleSection title="Appearance">
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1">
+            <Eye className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+            <Input
+              type="number"
+              value={Math.round(layer.opacity * 100)}
+              onChange={(e) =>
+                updateLayer(artboardId, layer.id, { opacity: (parseFloat(e.target.value) || 100) / 100 })
+              }
+              className="h-8 pl-7 pr-6 font-mono text-sm"
+            />
+            <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">%</span>
           </div>
         </div>
 
         <div className="flex items-center justify-between">
           <Label className="text-xs text-muted-foreground">Visible</Label>
-          <Switch checked={layer.visible} disabled />
+          <Switch
+            checked={layer.visible}
+            onCheckedChange={(visible) =>
+              updateLayer(artboardId, layer.id, { visible })
+            }
+          />
         </div>
 
         <div className="flex items-center justify-between">
           <Label className="text-xs text-muted-foreground">Locked</Label>
-          <Switch checked={layer.locked} disabled />
+          <Switch
+            checked={layer.locked}
+            onCheckedChange={(locked) =>
+              updateLayer(artboardId, layer.id, { locked })
+            }
+          />
         </div>
       </CollapsibleSection>
 
