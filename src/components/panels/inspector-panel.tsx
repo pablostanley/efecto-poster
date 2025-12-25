@@ -30,6 +30,10 @@ import {
   LinkSimple,
   Eye,
   Minus,
+  TextAlignLeft,
+  TextAlignCenter,
+  TextAlignRight,
+  TextAlignJustify,
 } from "@phosphor-icons/react"
 import type { EffectType, Layer } from "@/lib/types"
 
@@ -744,7 +748,8 @@ function LayerTypeSettings({
 
   if (layer.type === "text") {
     return (
-      <CollapsibleSection title="Text Settings">
+      <CollapsibleSection title="Typography">
+        {/* Content */}
         <div>
           <Label className="text-xs text-muted-foreground">Content</Label>
           <Input
@@ -758,48 +763,149 @@ function LayerTypeSettings({
           />
         </div>
 
+        {/* Font Family */}
         <div>
-          <Label className="text-xs text-muted-foreground">Font Size</Label>
-          <div className="flex items-center gap-2 mt-1">
-            <Slider
-              value={[layer.settings.fontSize]}
-              onValueChange={([value]) =>
+          <Label className="text-xs text-muted-foreground">Font</Label>
+          <Select
+            value={layer.settings.fontFamily}
+            onValueChange={(value) =>
+              updateLayer(artboardId, layer.id, {
+                settings: { ...layer.settings, fontFamily: value },
+              })
+            }
+          >
+            <SelectTrigger className="h-8 mt-1">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="Inter">Inter</SelectItem>
+              <SelectItem value="Arial">Arial</SelectItem>
+              <SelectItem value="Helvetica">Helvetica</SelectItem>
+              <SelectItem value="Georgia">Georgia</SelectItem>
+              <SelectItem value="Times New Roman">Times New Roman</SelectItem>
+              <SelectItem value="monospace">Monospace</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Weight + Size row */}
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <Label className="text-xs text-muted-foreground">Weight</Label>
+            <Select
+              value={String(layer.settings.fontWeight)}
+              onValueChange={(value) =>
                 updateLayer(artboardId, layer.id, {
-                  settings: { ...layer.settings, fontSize: value },
+                  settings: { ...layer.settings, fontWeight: parseInt(value) },
                 })
               }
-              min={8}
-              max={200}
-              step={1}
-              className="flex-1"
-            />
-            <span className="text-xs font-mono w-10 text-right">
-              {layer.settings.fontSize}px
-            </span>
+            >
+              <SelectTrigger className="h-8 mt-1">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="100">Thin</SelectItem>
+                <SelectItem value="200">Extra Light</SelectItem>
+                <SelectItem value="300">Light</SelectItem>
+                <SelectItem value="400">Regular</SelectItem>
+                <SelectItem value="500">Medium</SelectItem>
+                <SelectItem value="600">Semi Bold</SelectItem>
+                <SelectItem value="700">Bold</SelectItem>
+                <SelectItem value="800">Extra Bold</SelectItem>
+                <SelectItem value="900">Black</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label className="text-xs text-muted-foreground">Size</Label>
+            <div className="relative mt-1">
+              <Input
+                type="number"
+                value={layer.settings.fontSize}
+                onChange={(e) =>
+                  updateLayer(artboardId, layer.id, {
+                    settings: { ...layer.settings, fontSize: parseFloat(e.target.value) || 16 },
+                  })
+                }
+                className="h-8 pr-8 font-mono text-sm"
+                min={1}
+              />
+              <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">px</span>
+            </div>
           </div>
         </div>
 
+        {/* Letter Spacing + Line Height row */}
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <Label className="text-xs text-muted-foreground">Letter</Label>
+            <div className="relative mt-1">
+              <Input
+                type="number"
+                value={layer.settings.letterSpacing}
+                onChange={(e) =>
+                  updateLayer(artboardId, layer.id, {
+                    settings: { ...layer.settings, letterSpacing: parseFloat(e.target.value) || 0 },
+                  })
+                }
+                className="h-8 pr-8 font-mono text-sm"
+                step={0.1}
+              />
+              <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">em</span>
+            </div>
+          </div>
+          <div>
+            <Label className="text-xs text-muted-foreground">Line</Label>
+            <div className="relative mt-1">
+              <Input
+                type="number"
+                value={layer.settings.lineHeight}
+                onChange={(e) =>
+                  updateLayer(artboardId, layer.id, {
+                    settings: { ...layer.settings, lineHeight: parseFloat(e.target.value) || 1.2 },
+                  })
+                }
+                className="h-8 font-mono text-sm"
+                step={0.1}
+                min={0.5}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Text Alignment */}
         <div>
-          <Label className="text-xs text-muted-foreground">Color</Label>
-          <div className="flex items-center gap-2 mt-1">
-            <input
-              type="color"
-              value={layer.settings.color}
-              onChange={(e) =>
+          <Label className="text-xs text-muted-foreground">Align</Label>
+          <div className="flex items-center gap-1 mt-1 bg-muted/50 rounded p-0.5 w-fit">
+            <AlignButton
+              icon={TextAlignLeft}
+              active={layer.settings.textAlign === "left"}
+              onClick={() =>
                 updateLayer(artboardId, layer.id, {
-                  settings: { ...layer.settings, color: e.target.value },
+                  settings: { ...layer.settings, textAlign: "left" },
                 })
               }
-              className="w-8 h-8 rounded border cursor-pointer"
+              title="Align left"
             />
-            <Input
-              value={layer.settings.color}
-              onChange={(e) =>
+            <AlignButton
+              icon={TextAlignCenter}
+              active={layer.settings.textAlign === "center"}
+              onClick={() =>
                 updateLayer(artboardId, layer.id, {
-                  settings: { ...layer.settings, color: e.target.value },
+                  settings: { ...layer.settings, textAlign: "center" },
                 })
               }
-              className="h-8 font-mono text-sm flex-1"
+              title="Align center"
+            />
+            <AlignButton
+              icon={TextAlignRight}
+              active={layer.settings.textAlign === "right"}
+              onClick={() =>
+                updateLayer(artboardId, layer.id, {
+                  settings: { ...layer.settings, textAlign: "right" },
+                })
+              }
+              title="Align right"
             />
           </div>
         </div>
