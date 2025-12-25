@@ -170,7 +170,25 @@ export function ArtboardRenderer({ artboard }: ArtboardRendererProps) {
 
       {/* Selection handles */}
       {isSelected && (
-        <SelectionHandles width={displayWidth} height={displayHeight} />
+        <SelectionHandles
+          width={displayWidth}
+          height={displayHeight}
+          onResize={(deltaWidth, deltaHeight) => {
+            // Convert from display coordinates back to pixel dimensions
+            const pixelDeltaWidth = deltaWidth / scaleFactor
+            const pixelDeltaHeight = deltaHeight / scaleFactor
+
+            const newWidth = Math.max(100, artboard.size.width + pixelDeltaWidth)
+            const newHeight = Math.max(100, artboard.size.height + pixelDeltaHeight)
+
+            updateArtboard(artboard.id, {
+              size: {
+                width: Math.round(newWidth),
+                height: Math.round(newHeight),
+              },
+            })
+          }}
+        />
       )}
 
       {/* Portal for artboard content - renders to the FBO scene */}
@@ -182,38 +200,112 @@ export function ArtboardRenderer({ artboard }: ArtboardRendererProps) {
   )
 }
 
-// Selection handles component
+// Selection handles component with resize functionality
+type HandlePosition = "tl" | "tr" | "bl" | "br" | "t" | "b" | "l" | "r"
+
 function SelectionHandles({
   width,
   height,
+  onResize,
 }: {
   width: number
   height: number
+  onResize?: (deltaWidth: number, deltaHeight: number, handle: HandlePosition) => void
 }) {
   const handleSize = 3
   const handleColor = "#3b82f6"
+  const [activeHandle, setActiveHandle] = useState<HandlePosition | null>(null)
+  const dragStart = useRef<{ x: number; y: number } | null>(null)
 
   // Corner positions
-  const corners = [
-    { x: -width / 2, y: height / 2 },
-    { x: width / 2, y: height / 2 },
-    { x: -width / 2, y: -height / 2 },
-    { x: width / 2, y: -height / 2 },
+  const corners: { pos: HandlePosition; x: number; y: number }[] = [
+    { pos: "tl", x: -width / 2, y: height / 2 },
+    { pos: "tr", x: width / 2, y: height / 2 },
+    { pos: "bl", x: -width / 2, y: -height / 2 },
+    { pos: "br", x: width / 2, y: -height / 2 },
   ]
 
   // Edge midpoints
-  const edges = [
-    { x: 0, y: height / 2 },
-    { x: 0, y: -height / 2 },
-    { x: -width / 2, y: 0 },
-    { x: width / 2, y: 0 },
+  const edges: { pos: HandlePosition; x: number; y: number }[] = [
+    { pos: "t", x: 0, y: height / 2 },
+    { pos: "b", x: 0, y: -height / 2 },
+    { pos: "l", x: -width / 2, y: 0 },
+    { pos: "r", x: width / 2, y: 0 },
   ]
+
+  const handlePointerDown = (e: ThreeEvent<PointerEvent>, pos: HandlePosition) => {
+    e.stopPropagation()
+    setActiveHandle(pos)
+    dragStart.current = { x: e.point.x, y: e.point.y }
+  }
+
+  const handlePointerMove = (e: ThreeEvent<PointerEvent>) => {
+    if (!activeHandle || !dragStart.current) return
+    e.stopPropagation()
+
+    const deltaX = e.point.x - dragStart.current.x
+    const deltaY = e.point.y - dragStart.current.y
+
+    // Calculate size changes based on handle position
+    let deltaWidth = 0
+    let deltaHeight = 0
+
+    switch (activeHandle) {
+      case "tr":
+      case "br":
+        deltaWidth = deltaX
+        break
+      case "tl":
+      case "bl":
+        deltaWidth = -deltaX
+        break
+      case "r":
+        deltaWidth = deltaX
+        break
+      case "l":
+        deltaWidth = -deltaX
+        break
+    }
+
+    switch (activeHandle) {
+      case "tl":
+      case "tr":
+        deltaHeight = deltaY
+        break
+      case "bl":
+      case "br":
+        deltaHeight = -deltaY
+        break
+      case "t":
+        deltaHeight = deltaY
+        break
+      case "b":
+        deltaHeight = -deltaY
+        break
+    }
+
+    onResize?.(deltaWidth, deltaHeight, activeHandle)
+    dragStart.current = { x: e.point.x, y: e.point.y }
+  }
+
+  const handlePointerUp = (e: ThreeEvent<PointerEvent>) => {
+    e.stopPropagation()
+    setActiveHandle(null)
+    dragStart.current = null
+  }
 
   return (
     <group position={[0, 0, 0.2]}>
       {/* Corner handles */}
-      {corners.map((pos, i) => (
-        <group key={`corner-${i}`} position={[pos.x, pos.y, 0]}>
+      {corners.map(({ pos, x, y }) => (
+        <group
+          key={pos}
+          position={[x, y, 0]}
+          onPointerDown={(e) => handlePointerDown(e, pos)}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+          onPointerLeave={handlePointerUp}
+        >
           <mesh>
             <planeGeometry args={[handleSize, handleSize]} />
             <meshBasicMaterial color={handleColor} />
@@ -226,8 +318,15 @@ function SelectionHandles({
       ))}
 
       {/* Edge handles */}
-      {edges.map((pos, i) => (
-        <group key={`edge-${i}`} position={[pos.x, pos.y, 0]}>
+      {edges.map(({ pos, x, y }) => (
+        <group
+          key={pos}
+          position={[x, y, 0]}
+          onPointerDown={(e) => handlePointerDown(e, pos)}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+          onPointerLeave={handlePointerUp}
+        >
           <mesh>
             <planeGeometry args={[handleSize * 0.8, handleSize * 0.8]} />
             <meshBasicMaterial color={handleColor} />
