@@ -1,7 +1,7 @@
 "use client"
 
 import { useRef, useEffect, useState } from "react"
-import { useFrame, useLoader } from "@react-three/fiber"
+import { ThreeEvent } from "@react-three/fiber"
 import * as THREE from "three"
 import type { LayerMedia as LayerMediaType } from "@/lib/types"
 
@@ -11,6 +11,7 @@ interface LayerMediaProps {
   artboardHeight: number
   zIndex: number
   isSelected: boolean
+  onClick?: (e: ThreeEvent<MouseEvent>) => void
 }
 
 export function LayerMedia({
@@ -19,6 +20,7 @@ export function LayerMedia({
   artboardHeight,
   zIndex,
   isSelected,
+  onClick,
 }: LayerMediaProps) {
   const { transform, settings, opacity } = layer
   const [texture, setTexture] = useState<THREE.Texture | null>(null)
@@ -118,6 +120,7 @@ export function LayerMedia({
       position={[x, y, zIndex * 0.1]}
       rotation={[0, 0, (transform.rotation * Math.PI) / 180]}
       scale={[transform.scale * scaleX, transform.scale * scaleY, 1]}
+      onClick={onClick}
     >
       {texture ? (
         <mesh>

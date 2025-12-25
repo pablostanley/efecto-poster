@@ -1,7 +1,7 @@
 "use client"
 
 import { useRef } from "react"
-import { useFrame } from "@react-three/fiber"
+import { useFrame, ThreeEvent } from "@react-three/fiber"
 import * as THREE from "three"
 import type { Layer3D as Layer3DType } from "@/lib/types"
 
@@ -11,6 +11,7 @@ interface Layer3DProps {
   artboardHeight: number
   zIndex: number
   isSelected: boolean
+  onClick?: (e: ThreeEvent<MouseEvent>) => void
 }
 
 // Shape geometry factory
@@ -135,6 +136,7 @@ export function Layer3D({
   artboardHeight,
   zIndex,
   isSelected,
+  onClick,
 }: Layer3DProps) {
   const meshRef = useRef<THREE.Mesh>(null)
   const { transform, settings, opacity } = layer
@@ -163,6 +165,7 @@ export function Layer3D({
       position={[x, y, zIndex * 0.1 + 50]}
       rotation={[0, 0, (transform.rotation * Math.PI) / 180]}
       scale={[transform.scale * settings.scale, transform.scale * settings.scale, transform.scale * settings.scale]}
+      onClick={onClick}
     >
       {/* Lighting for 3D object */}
       <ambientLight intensity={0.4} />

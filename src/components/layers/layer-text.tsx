@@ -1,6 +1,7 @@
 "use client"
 
 import { Text } from "@react-three/drei"
+import { ThreeEvent } from "@react-three/fiber"
 import * as THREE from "three"
 import type { LayerText as LayerTextType } from "@/lib/types"
 
@@ -10,6 +11,7 @@ interface LayerTextProps {
   artboardHeight: number
   zIndex: number
   isSelected: boolean
+  onClick?: (e: ThreeEvent<MouseEvent>) => void
 }
 
 export function LayerText({
@@ -18,6 +20,7 @@ export function LayerText({
   artboardHeight,
   zIndex,
   isSelected,
+  onClick,
 }: LayerTextProps) {
   const { transform, settings, opacity } = layer
 
@@ -36,6 +39,7 @@ export function LayerText({
       position={[x, y, zIndex * 0.1]}
       rotation={[0, 0, (transform.rotation * Math.PI) / 180]}
       scale={[transform.scale, transform.scale, 1]}
+      onClick={onClick}
     >
       <Text
         font="/fonts/Inter-Regular.woff"

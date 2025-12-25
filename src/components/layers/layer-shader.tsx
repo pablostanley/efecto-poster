@@ -1,7 +1,7 @@
 "use client"
 
 import { useRef, useMemo } from "react"
-import { useFrame } from "@react-three/fiber"
+import { useFrame, ThreeEvent } from "@react-three/fiber"
 import * as THREE from "three"
 import type { LayerShader as LayerShaderType } from "@/lib/types"
 
@@ -11,6 +11,7 @@ interface LayerShaderProps {
   artboardHeight: number
   zIndex: number
   isSelected: boolean
+  onClick?: (e: ThreeEvent<MouseEvent>) => void
 }
 
 // Simple mesh gradient shader
@@ -207,6 +208,7 @@ export function LayerShader({
   artboardHeight,
   zIndex,
   isSelected,
+  onClick,
 }: LayerShaderProps) {
   const meshRef = useRef<THREE.Mesh>(null)
   const { transform, settings, opacity } = layer
@@ -242,6 +244,7 @@ export function LayerShader({
       position={[x, y, zIndex * 0.1]}
       rotation={[0, 0, (transform.rotation * Math.PI) / 180]}
       scale={[transform.scale, transform.scale, 1]}
+      onClick={onClick}
     >
       <mesh ref={meshRef} material={shaderMaterial}>
         <planeGeometry args={[artboardWidth, artboardHeight]} />
