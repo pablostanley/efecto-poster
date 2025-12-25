@@ -1,4 +1,5 @@
 import { create } from "zustand"
+import { subscribeWithSelector } from "zustand/middleware"
 import {
   CanvasState,
   CanvasSettings,
@@ -19,6 +20,14 @@ import {
   LayerShader,
   LayerText,
 } from "./types"
+
+// History for undo/redo
+interface HistoryState {
+  past: CanvasState[]
+  future: CanvasState[]
+}
+
+const MAX_HISTORY = 50
 
 // ID generators
 let artboardCounter = 0
@@ -105,6 +114,9 @@ function createLayer(type: LayerType): Layer {
 }
 
 interface CanvasStore extends CanvasState {
+  // History state
+  _history: HistoryState
+
   // Camera actions
   setCamera: (camera: Partial<CameraState>) => void
   pan: (deltaX: number, deltaY: number) => void
@@ -134,12 +146,83 @@ interface CanvasStore extends CanvasState {
   // Canvas settings actions
   updateCanvasSettings: (settings: Partial<CanvasSettings>) => void
 
+  // History actions
+  undo: () => void
+  redo: () => void
+  canUndo: () => boolean
+  canRedo: () => boolean
+  _saveToHistory: () => void
+
   // Persistence
   loadState: (state: Partial<CanvasState>) => void
 }
 
-export const useCanvasStore = create<CanvasStore>((set, get) => ({
+// Helper to extract just the canvas state (without history and actions)
+function getCanvasStateSnapshot(state: CanvasStore): CanvasState {
+  return {
+    camera: state.camera,
+    artboards: JSON.parse(JSON.stringify(state.artboards)), // Deep clone
+    editor: state.editor,
+    canvas: state.canvas,
+  }
+}
+
+export const useCanvasStore = create<CanvasStore>()(
+  subscribeWithSelector((set, get) => ({
   ...DEFAULT_CANVAS_STATE,
+
+  // History state
+  _history: { past: [], future: [] },
+
+  // Save current state to history (called before mutations)
+  _saveToHistory: () => {
+    const state = get()
+    const snapshot = getCanvasStateSnapshot(state)
+    set((s) => ({
+      _history: {
+        past: [...s._history.past.slice(-MAX_HISTORY + 1), snapshot],
+        future: [], // Clear future on new action
+      },
+    }))
+  },
+
+  // Undo
+  undo: () => {
+    const state = get()
+    if (state._history.past.length === 0) return
+
+    const previous = state._history.past[state._history.past.length - 1]
+    const currentSnapshot = getCanvasStateSnapshot(state)
+
+    set({
+      ...previous,
+      _history: {
+        past: state._history.past.slice(0, -1),
+        future: [currentSnapshot, ...state._history.future],
+      },
+    })
+  },
+
+  // Redo
+  redo: () => {
+    const state = get()
+    if (state._history.future.length === 0) return
+
+    const next = state._history.future[0]
+    const currentSnapshot = getCanvasStateSnapshot(state)
+
+    set({
+      ...next,
+      _history: {
+        past: [...state._history.past, currentSnapshot],
+        future: state._history.future.slice(1),
+      },
+    })
+  },
+
+  // Check if undo/redo are available
+  canUndo: () => get()._history.past.length > 0,
+  canRedo: () => get()._history.future.length > 0,
 
   // Camera actions
   setCamera: (camera) =>
@@ -373,7 +456,7 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
       ...prev,
       ...state,
     })),
-}))
+})))
 
 // Selector hooks for performance
 export const useCamera = () => useCanvasStore((state) => state.camera)

@@ -14,6 +14,9 @@ export function useKeyboardShortcuts() {
   const selectArtboard = useCanvasStore((state) => state.selectArtboard)
   const selectLayer = useCanvasStore((state) => state.selectLayer)
   const updateLayer = useCanvasStore((state) => state.updateLayer)
+  const undo = useCanvasStore((state) => state.undo)
+  const redo = useCanvasStore((state) => state.redo)
+  const saveToHistory = useCanvasStore((state) => state._saveToHistory)
 
   // Get the selected layer
   const selectedArtboard = artboards.find((a) => a.id === selectedArtboardId)
@@ -34,9 +37,24 @@ export function useKeyboardShortcuts() {
       const isMeta = e.metaKey || e.ctrlKey
       const isShift = e.shiftKey
 
+      // Cmd+Z - Undo
+      if (isMeta && e.key === "z" && !isShift) {
+        e.preventDefault()
+        undo()
+        return
+      }
+
+      // Cmd+Shift+Z or Cmd+Y - Redo
+      if ((isMeta && e.key === "z" && isShift) || (isMeta && e.key === "y")) {
+        e.preventDefault()
+        redo()
+        return
+      }
+
       // Delete key - delete selected layer or artboard
       if (e.key === "Delete" || e.key === "Backspace") {
         e.preventDefault()
+        saveToHistory()
 
         if (selectedLayerId && selectedArtboardId) {
           deleteLayer(selectedArtboardId, selectedLayerId)
@@ -60,6 +78,7 @@ export function useKeyboardShortcuts() {
       // Cmd+D - duplicate
       if (isMeta && e.key === "d") {
         e.preventDefault()
+        saveToHistory()
 
         if (selectedLayerId && selectedArtboardId) {
           duplicateLayer(selectedArtboardId, selectedLayerId)
@@ -123,6 +142,7 @@ export function useKeyboardShortcuts() {
       // H - toggle layer visibility
       if (e.key === "h" && selectedLayerId && selectedArtboardId && selectedLayer) {
         e.preventDefault()
+        saveToHistory()
         updateLayer(selectedArtboardId, selectedLayerId, {
           visible: !selectedLayer.visible,
         })
@@ -132,6 +152,7 @@ export function useKeyboardShortcuts() {
       // L - toggle layer lock
       if (e.key === "l" && selectedLayerId && selectedArtboardId && selectedLayer) {
         e.preventDefault()
+        saveToHistory()
         updateLayer(selectedArtboardId, selectedLayerId, {
           locked: !selectedLayer.locked,
         })
@@ -150,6 +171,9 @@ export function useKeyboardShortcuts() {
       selectArtboard,
       selectLayer,
       updateLayer,
+      undo,
+      redo,
+      saveToHistory,
     ]
   )
 
