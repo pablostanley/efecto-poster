@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useRef } from "react"
+import { useEffect, useRef } from "react"
 import { useFrame } from "@react-three/fiber"
 import * as THREE from "three"
 import type { EffectSettings } from "@/lib/types"
@@ -12,7 +12,7 @@ interface ArtboardEffectProps {
   height: number
 }
 
-// ASCII Effect Shader - simplified for per-artboard use
+// ASCII Effect Shader
 const asciiVertexShader = `
 varying vec2 vUv;
 void main() {
@@ -216,13 +216,13 @@ void main() {
   float luma = dot(color.rgb, vec3(0.299, 0.587, 0.114));
 
   float radius = luma * dotSize / spacing;
-  float dot = smoothstep(radius + 0.02, radius, dist);
+  float dotVal = smoothstep(radius + 0.02, radius, dist);
 
   vec3 finalColor;
   if (colorMode) {
-    finalColor = color.rgb * dot;
+    finalColor = color.rgb * dotVal;
   } else {
-    finalColor = vec3(dot);
+    finalColor = vec3(dotVal);
   }
 
   gl_FragColor = vec4(finalColor, 1.0);
@@ -243,18 +243,29 @@ function hexToRgb(hex: string): [number, number, number] {
 }
 
 export function ArtboardEffect({ inputTexture, effect, width, height }: ArtboardEffectProps) {
-  const materialRef = useRef<THREE.ShaderMaterial>(null)
+  const materialRef = useRef<THREE.Material | null>(null)
+  const effectTypeRef = useRef<string | null>(null)
 
-  const material = useMemo(() => {
-    if (!effect.enabled) {
-      return new THREE.MeshBasicMaterial({ map: inputTexture })
+  // Create or update material based on effect type
+  useEffect(() => {
+    // Clean up old material
+    if (materialRef.current) {
+      materialRef.current.dispose()
     }
+
+    if (!effect.enabled) {
+      materialRef.current = new THREE.MeshBasicMaterial({ map: inputTexture })
+      effectTypeRef.current = null
+      return
+    }
+
+    effectTypeRef.current = effect.type
 
     if (effect.type === "ascii") {
       const inkRgb = hexToRgb(effect.ascii.inkColor)
       const paperRgb = hexToRgb(effect.ascii.paperColor)
 
-      return new THREE.ShaderMaterial({
+      materialRef.current = new THREE.ShaderMaterial({
         uniforms: {
           tInput: { value: inputTexture },
           cellSize: { value: effect.ascii.cellSize },
@@ -274,13 +285,11 @@ export function ArtboardEffect({ inputTexture, effect, width, height }: Artboard
         vertexShader: asciiVertexShader,
         fragmentShader: asciiFragmentShader,
       })
-    }
-
-    if (effect.type === "dither") {
+    } else if (effect.type === "dither") {
       const color1Rgb = hexToRgb(effect.dither.color1)
       const color2Rgb = hexToRgb(effect.dither.color2)
 
-      return new THREE.ShaderMaterial({
+      materialRef.current = new THREE.ShaderMaterial({
         uniforms: {
           tInput: { value: inputTexture },
           pixelSize: { value: effect.dither.pixelSize },
@@ -294,10 +303,8 @@ export function ArtboardEffect({ inputTexture, effect, width, height }: Artboard
         vertexShader: asciiVertexShader,
         fragmentShader: ditherFragmentShader,
       })
-    }
-
-    if (effect.type === "halftone") {
-      return new THREE.ShaderMaterial({
+    } else if (effect.type === "halftone") {
+      materialRef.current = new THREE.ShaderMaterial({
         uniforms: {
           tInput: { value: inputTexture },
           dotSize: { value: effect.halftone.dotSize },
@@ -309,67 +316,72 @@ export function ArtboardEffect({ inputTexture, effect, width, height }: Artboard
         vertexShader: asciiVertexShader,
         fragmentShader: halftoneFragmentShader,
       })
+    } else {
+      materialRef.current = new THREE.MeshBasicMaterial({ map: inputTexture })
     }
 
-    // Default: no effect
-    return new THREE.MeshBasicMaterial({ map: inputTexture })
-  }, [inputTexture, effect, width, height])
-
-  // Update time uniform for animated effects
-  useFrame(({ clock }) => {
-    if (materialRef.current && effect.enabled && effect.type === "ascii") {
-      const uniforms = (materialRef.current as THREE.ShaderMaterial).uniforms
-      if (uniforms?.time) {
-        uniforms.time.value = clock.elapsedTime
+    return () => {
+      if (materialRef.current) {
+        materialRef.current.dispose()
       }
     }
-  })
+  }, [effect.enabled, effect.type, width, height]) // Only recreate on type change
 
-  // Update uniforms when effect settings change
-  useMemo(() => {
-    if (materialRef.current && effect.enabled) {
-      const shaderMat = materialRef.current as THREE.ShaderMaterial
-      if (shaderMat.uniforms) {
-        shaderMat.uniforms.tInput.value = inputTexture
+  // Update uniforms when settings change (without recreating material)
+  useEffect(() => {
+    if (!materialRef.current || !effect.enabled) return
+    const mat = materialRef.current as THREE.ShaderMaterial
+    if (!mat.uniforms) return
 
-        if (effect.type === "ascii") {
-          const inkRgb = hexToRgb(effect.ascii.inkColor)
-          const paperRgb = hexToRgb(effect.ascii.paperColor)
+    // Update input texture
+    mat.uniforms.tInput.value = inputTexture
 
-          shaderMat.uniforms.cellSize.value = effect.ascii.cellSize
-          shaderMat.uniforms.invert.value = effect.ascii.invert
-          shaderMat.uniforms.colorMode.value = effect.ascii.color
-          shaderMat.uniforms.inkColor.value.set(inkRgb[0], inkRgb[1], inkRgb[2])
-          shaderMat.uniforms.paperColor.value.set(paperRgb[0], paperRgb[1], paperRgb[2])
-          shaderMat.uniforms.contrast.value = effect.ascii.contrast
-          shaderMat.uniforms.jitter.value = effect.ascii.jitter
-          shaderMat.uniforms.jitterSpeed.value = effect.ascii.jitterSpeed
-          shaderMat.uniforms.vignette.value = effect.ascii.vignette
-          shaderMat.uniforms.noise.value = effect.ascii.noise
-          shaderMat.uniforms.noiseSpeed.value = effect.ascii.noiseSpeed
-        }
+    if (effect.type === "ascii" && effectTypeRef.current === "ascii") {
+      const inkRgb = hexToRgb(effect.ascii.inkColor)
+      const paperRgb = hexToRgb(effect.ascii.paperColor)
 
-        if (effect.type === "dither") {
-          const color1Rgb = hexToRgb(effect.dither.color1)
-          const color2Rgb = hexToRgb(effect.dither.color2)
+      mat.uniforms.cellSize.value = effect.ascii.cellSize
+      mat.uniforms.invert.value = effect.ascii.invert
+      mat.uniforms.colorMode.value = effect.ascii.color
+      mat.uniforms.inkColor.value.set(inkRgb[0], inkRgb[1], inkRgb[2])
+      mat.uniforms.paperColor.value.set(paperRgb[0], paperRgb[1], paperRgb[2])
+      mat.uniforms.contrast.value = effect.ascii.contrast
+      mat.uniforms.jitter.value = effect.ascii.jitter
+      mat.uniforms.jitterSpeed.value = effect.ascii.jitterSpeed
+      mat.uniforms.vignette.value = effect.ascii.vignette
+      mat.uniforms.noise.value = effect.ascii.noise
+      mat.uniforms.noiseSpeed.value = effect.ascii.noiseSpeed
+    } else if (effect.type === "dither" && effectTypeRef.current === "dither") {
+      const color1Rgb = hexToRgb(effect.dither.color1)
+      const color2Rgb = hexToRgb(effect.dither.color2)
 
-          shaderMat.uniforms.pixelSize.value = effect.dither.pixelSize
-          shaderMat.uniforms.color1.value.set(color1Rgb[0], color1Rgb[1], color1Rgb[2])
-          shaderMat.uniforms.color2.value.set(color2Rgb[0], color2Rgb[1], color2Rgb[2])
-          shaderMat.uniforms.contrast.value = effect.dither.contrast
-          shaderMat.uniforms.brightness.value = effect.dither.brightness
-          shaderMat.uniforms.colorful.value = effect.dither.colorful
-        }
-
-        if (effect.type === "halftone") {
-          shaderMat.uniforms.dotSize.value = effect.halftone.dotSize
-          shaderMat.uniforms.spacing.value = effect.halftone.spacing
-          shaderMat.uniforms.angle.value = effect.halftone.angle
-          shaderMat.uniforms.colorMode.value = effect.halftone.colorMode === "color"
-        }
-      }
+      mat.uniforms.pixelSize.value = effect.dither.pixelSize
+      mat.uniforms.color1.value.set(color1Rgb[0], color1Rgb[1], color1Rgb[2])
+      mat.uniforms.color2.value.set(color2Rgb[0], color2Rgb[1], color2Rgb[2])
+      mat.uniforms.contrast.value = effect.dither.contrast
+      mat.uniforms.brightness.value = effect.dither.brightness
+      mat.uniforms.colorful.value = effect.dither.colorful
+    } else if (effect.type === "halftone" && effectTypeRef.current === "halftone") {
+      mat.uniforms.dotSize.value = effect.halftone.dotSize
+      mat.uniforms.spacing.value = effect.halftone.spacing
+      mat.uniforms.angle.value = effect.halftone.angle
+      mat.uniforms.colorMode.value = effect.halftone.colorMode === "color"
     }
   }, [inputTexture, effect])
 
-  return <primitive ref={materialRef} object={material} attach="material" />
+  // Update time for animated effects
+  useFrame(({ clock }) => {
+    if (!materialRef.current || !effect.enabled) return
+    const mat = materialRef.current as THREE.ShaderMaterial
+    if (mat.uniforms?.time) {
+      mat.uniforms.time.value = clock.elapsedTime
+    }
+  })
+
+  // Return a basic material if ref not ready yet
+  if (!materialRef.current) {
+    return <meshBasicMaterial map={inputTexture} />
+  }
+
+  return <primitive object={materialRef.current} attach="material" />
 }
