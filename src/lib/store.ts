@@ -1,6 +1,7 @@
 import { create } from "zustand"
 import {
   CanvasState,
+  CanvasSettings,
   Artboard,
   Layer,
   LayerType,
@@ -129,6 +130,9 @@ interface CanvasStore extends CanvasState {
 
   // Editor actions
   setTool: (tool: "select" | "pan" | "zoom") => void
+
+  // Canvas settings actions
+  updateCanvasSettings: (settings: Partial<CanvasSettings>) => void
 
   // Persistence
   loadState: (state: Partial<CanvasState>) => void
@@ -357,6 +361,12 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
       editor: { ...state.editor, tool },
     })),
 
+  // Canvas settings actions
+  updateCanvasSettings: (settings) =>
+    set((state) => ({
+      canvas: { ...state.canvas, ...settings },
+    })),
+
   // Persistence
   loadState: (state) =>
     set((prev) => ({
@@ -369,6 +379,7 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
 export const useCamera = () => useCanvasStore((state) => state.camera)
 export const useArtboards = () => useCanvasStore((state) => state.artboards)
 export const useEditor = () => useCanvasStore((state) => state.editor)
+export const useCanvasSettings = () => useCanvasStore((state) => state.canvas)
 export const useSelectedArtboard = () => {
   const artboards = useCanvasStore((state) => state.artboards)
   const selectedId = useCanvasStore((state) => state.editor.selectedArtboardId)

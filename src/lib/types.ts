@@ -190,10 +190,19 @@ export interface EditorState {
   tool: "select" | "pan" | "zoom"
 }
 
+export interface CanvasSettings {
+  backgroundColor: string
+  showGrid: boolean
+  gridSize: number
+  gridColor: string
+  snapToGrid: boolean
+}
+
 export interface CanvasState {
   camera: CameraState
   artboards: Artboard[]
   editor: EditorState
+  canvas: CanvasSettings
 }
 
 // ========================================
@@ -326,8 +335,17 @@ export const DEFAULT_EDITOR: EditorState = {
   tool: "select",
 }
 
+export const DEFAULT_CANVAS_SETTINGS: CanvasSettings = {
+  backgroundColor: "#1a1a1a",
+  showGrid: true,
+  gridSize: 50,
+  gridColor: "#333333",
+  snapToGrid: false,
+}
+
 export const DEFAULT_CANVAS_STATE: CanvasState = {
   camera: DEFAULT_CAMERA,
   artboards: [],
   editor: DEFAULT_EDITOR,
+  canvas: DEFAULT_CANVAS_SETTINGS,
 }

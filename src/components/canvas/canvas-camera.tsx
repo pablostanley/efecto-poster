@@ -1,8 +1,8 @@
 "use client"
 
-import { useThree, useFrame } from "@react-three/fiber"
+import { useThree } from "@react-three/fiber"
 import { useEffect, useRef, useCallback } from "react"
-import { OrthographicCamera, Vector3 } from "three"
+import { OrthographicCamera } from "three"
 import { useCanvasStore } from "@/lib/store"
 
 export function CanvasCamera() {
@@ -11,7 +11,7 @@ export function CanvasCamera() {
   const setCamera = useCanvasStore((state) => state.setCamera)
   const tool = useCanvasStore((state) => state.editor.tool)
 
-  const isDragging = useRef(false)
+  const isPanning = useRef(false)
   const lastPointer = useRef({ x: 0, y: 0 })
   const isSpacePressed = useRef(false)
 
@@ -34,7 +34,7 @@ export function CanvasCamera() {
       e.preventDefault()
 
       const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1
-      const newZoom = Math.max(0.01, Math.min(10, storeCamera.zoom * zoomFactor))
+      const newZoom = Math.max(0.1, Math.min(10, storeCamera.zoom * zoomFactor))
 
       setCamera({ zoom: newZoom })
     },
@@ -44,9 +44,19 @@ export function CanvasCamera() {
   // Handle mouse down for pan
   const handleMouseDown = useCallback(
     (e: MouseEvent) => {
-      // Pan with middle mouse, or left mouse when space is pressed or pan tool active
-      if (e.button === 1 || (e.button === 0 && (isSpacePressed.current || tool === "pan"))) {
-        isDragging.current = true
+      // Only pan with:
+      // - Middle mouse button (button 1)
+      // - Left click + space pressed
+      // - Left click when pan tool is active
+      const shouldPan =
+        e.button === 1 ||
+        (e.button === 0 && isSpacePressed.current) ||
+        (e.button === 0 && tool === "pan")
+
+      if (shouldPan) {
+        e.preventDefault()
+        e.stopPropagation()
+        isPanning.current = true
         lastPointer.current = { x: e.clientX, y: e.clientY }
         gl.domElement.style.cursor = "grabbing"
       }
@@ -57,7 +67,7 @@ export function CanvasCamera() {
   // Handle mouse move for pan
   const handleMouseMove = useCallback(
     (e: MouseEvent) => {
-      if (!isDragging.current) return
+      if (!isPanning.current) return
 
       const deltaX = e.clientX - lastPointer.current.x
       const deltaY = e.clientY - lastPointer.current.y
@@ -80,7 +90,7 @@ export function CanvasCamera() {
 
   // Handle mouse up
   const handleMouseUp = useCallback(() => {
-    isDragging.current = false
+    isPanning.current = false
     gl.domElement.style.cursor = isSpacePressed.current || tool === "pan" ? "grab" : "default"
   }, [gl, tool])
 
@@ -88,6 +98,7 @@ export function CanvasCamera() {
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
       if (e.code === "Space" && !isSpacePressed.current) {
+        e.preventDefault()
         isSpacePressed.current = true
         gl.domElement.style.cursor = "grab"
       }
@@ -99,7 +110,7 @@ export function CanvasCamera() {
     (e: KeyboardEvent) => {
       if (e.code === "Space") {
         isSpacePressed.current = false
-        if (!isDragging.current) {
+        if (!isPanning.current) {
           gl.domElement.style.cursor = "default"
         }
       }
@@ -107,12 +118,20 @@ export function CanvasCamera() {
     [gl]
   )
 
+  // Update cursor based on tool
+  useEffect(() => {
+    if (!isPanning.current && !isSpacePressed.current) {
+      gl.domElement.style.cursor = tool === "pan" ? "grab" : "default"
+    }
+  }, [tool, gl])
+
   // Set up event listeners
   useEffect(() => {
     const canvas = gl.domElement
 
     canvas.addEventListener("wheel", handleWheel, { passive: false })
-    canvas.addEventListener("mousedown", handleMouseDown)
+    // Use capture phase for mousedown to handle pan before R3F events
+    canvas.addEventListener("mousedown", handleMouseDown, { capture: false })
     window.addEventListener("mousemove", handleMouseMove)
     window.addEventListener("mouseup", handleMouseUp)
     window.addEventListener("keydown", handleKeyDown)
