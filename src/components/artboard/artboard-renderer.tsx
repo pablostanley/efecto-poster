@@ -6,6 +6,7 @@ import { useFBO, Html } from "@react-three/drei"
 import * as THREE from "three"
 import type { Artboard } from "@/lib/types"
 import { useCanvasStore } from "@/lib/store"
+import { LayerRenderer } from "@/components/layers"
 
 interface ArtboardRendererProps {
   artboard: Artboard
@@ -258,7 +259,7 @@ function ArtboardContent({ artboard }: { artboard: Artboard }) {
       {artboard.layers
         .filter((layer) => layer.visible)
         .map((layer, index) => (
-          <LayerPlaceholder
+          <LayerRenderer
             key={layer.id}
             layer={layer}
             artboard={artboard}
@@ -270,67 +271,3 @@ function ArtboardContent({ artboard }: { artboard: Artboard }) {
   )
 }
 
-// Placeholder for layer rendering
-function LayerPlaceholder({
-  layer,
-  artboard,
-  zIndex,
-  isSelected,
-}: {
-  layer: Artboard["layers"][0]
-  artboard: Artboard
-  zIndex: number
-  isSelected: boolean
-}) {
-  const transform = layer.transform
-
-  // Position based on transform
-  const x = transform.x * 2
-  const y = transform.y * 2
-
-  // Layer type colors
-  const typeColors = {
-    "3d": "#a855f7",
-    media: "#22c55e",
-    shader: "#f97316",
-    text: "#3b82f6",
-  }
-
-  const color = typeColors[layer.type]
-
-  return (
-    <group
-      position={[x, y, zIndex * 0.1]}
-      rotation={[0, 0, (transform.rotation * Math.PI) / 180]}
-      scale={[transform.scale, transform.scale, 1]}
-    >
-      {/* Layer placeholder */}
-      <mesh>
-        <planeGeometry args={[150, 150]} />
-        <meshBasicMaterial
-          color={color}
-          transparent
-          opacity={layer.opacity * 0.3}
-        />
-      </mesh>
-
-      {/* Border - highlighted when selected */}
-      <lineSegments>
-        <edgesGeometry args={[new THREE.PlaneGeometry(150, 150)]} />
-        <lineBasicMaterial
-          color={isSelected ? "#ffffff" : color}
-          opacity={isSelected ? 1 : 0.5}
-          transparent
-        />
-      </lineSegments>
-
-      {/* Selection indicator */}
-      {isSelected && (
-        <lineSegments position={[0, 0, 0.05]}>
-          <edgesGeometry args={[new THREE.PlaneGeometry(160, 160)]} />
-          <lineBasicMaterial color="#3b82f6" />
-        </lineSegments>
-      )}
-    </group>
-  )
-}
