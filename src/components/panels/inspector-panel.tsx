@@ -34,6 +34,8 @@ import {
   TextAlignCenter,
   TextAlignRight,
   TextAlignJustify,
+  Download,
+  Image as ImageIcon,
 } from "@phosphor-icons/react"
 import type { EffectType, Layer } from "@/lib/types"
 
@@ -285,7 +287,120 @@ function ArtboardInspector({
       >
         <EffectProperties artboard={artboard} />
       </CollapsibleSection>
+
+      {/* Export */}
+      <CollapsibleSection
+        title="Export"
+        defaultOpen={false}
+        action={
+          <button className="p-1 hover:bg-muted rounded" title="Add export preset">
+            <Plus className="w-4 h-4" />
+          </button>
+        }
+      >
+        <ExportSection artboard={artboard} />
+      </CollapsibleSection>
     </>
+  )
+}
+
+// Export section component
+function ExportSection({
+  artboard,
+}: {
+  artboard: NonNullable<ReturnType<typeof useSelectedArtboard>>
+}) {
+  const [exportScale, setExportScale] = useState(1)
+  const [exportFormat, setExportFormat] = useState<"png" | "jpg" | "webp">("png")
+
+  const handleExport = () => {
+    // Get the canvas element
+    const canvas = document.querySelector("canvas")
+    if (!canvas) return
+
+    // Create a temporary canvas at the export resolution
+    const exportCanvas = document.createElement("canvas")
+    const ctx = exportCanvas.getContext("2d")
+    if (!ctx) return
+
+    const exportWidth = artboard.size.width * exportScale
+    const exportHeight = artboard.size.height * exportScale
+
+    exportCanvas.width = exportWidth
+    exportCanvas.height = exportHeight
+
+    // For now, capture the current canvas
+    // In a full implementation, we'd render the specific artboard
+    ctx.drawImage(canvas, 0, 0, exportWidth, exportHeight)
+
+    // Convert to data URL and download
+    const mimeType = exportFormat === "jpg" ? "image/jpeg" : exportFormat === "webp" ? "image/webp" : "image/png"
+    const dataUrl = exportCanvas.toDataURL(mimeType, 0.95)
+
+    const link = document.createElement("a")
+    link.download = `${artboard.name.replace(/\s+/g, "-").toLowerCase()}.${exportFormat}`
+    link.href = dataUrl
+    link.click()
+  }
+
+  return (
+    <div className="space-y-3">
+      {/* Export size */}
+      <div className="flex items-center gap-2 p-2 bg-muted/30 rounded">
+        <ImageIcon className="w-4 h-4 text-muted-foreground" />
+        <span className="text-xs flex-1">
+          {Math.round(artboard.size.width * exportScale)} × {Math.round(artboard.size.height * exportScale)}
+        </span>
+        <span className="text-xs text-muted-foreground">{exportScale}x</span>
+      </div>
+
+      {/* Scale selector */}
+      <div>
+        <Label className="text-xs text-muted-foreground">Scale</Label>
+        <Select
+          value={String(exportScale)}
+          onValueChange={(value) => setExportScale(parseFloat(value))}
+        >
+          <SelectTrigger className="h-8 mt-1">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="0.5">0.5x (Half)</SelectItem>
+            <SelectItem value="1">1x (Original)</SelectItem>
+            <SelectItem value="2">2x (Retina)</SelectItem>
+            <SelectItem value="3">3x</SelectItem>
+            <SelectItem value="4">4x</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Format selector */}
+      <div>
+        <Label className="text-xs text-muted-foreground">Format</Label>
+        <Select
+          value={exportFormat}
+          onValueChange={(value) => setExportFormat(value as "png" | "jpg" | "webp")}
+        >
+          <SelectTrigger className="h-8 mt-1">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="png">PNG</SelectItem>
+            <SelectItem value="jpg">JPG</SelectItem>
+            <SelectItem value="webp">WebP</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Export button */}
+      <button
+        onClick={handleExport}
+        className="w-full h-9 bg-primary text-primary-foreground rounded-md text-sm font-medium flex items-center justify-center gap-2 hover:bg-primary/90 transition-colors"
+      >
+        <Download className="w-4 h-4" />
+        Export {artboard.name}
+      </button>
+    </div>
   )
 }
 
