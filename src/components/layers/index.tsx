@@ -1,5 +1,6 @@
 "use client"
 
+import { useRef, useState } from "react"
 import { ThreeEvent } from "@react-three/fiber"
 import type { Layer, Artboard } from "@/lib/types"
 import { useCanvasStore } from "@/lib/store"
@@ -23,11 +24,63 @@ export function LayerRenderer({
 }: LayerRendererProps) {
   const { width, height } = artboard.size
   const selectLayer = useCanvasStore((state) => state.selectLayer)
+  const updateLayer = useCanvasStore((state) => state.updateLayer)
 
-  // Handle layer click to select
-  const handleClick = (e: ThreeEvent<MouseEvent>) => {
+  // Drag state
+  const [isDragging, setIsDragging] = useState(false)
+  const dragStart = useRef<{
+    pointerX: number
+    pointerY: number
+    layerX: number
+    layerY: number
+  } | null>(null)
+
+  // Handle layer click/pointer down
+  const handlePointerDown = (e: ThreeEvent<PointerEvent>) => {
     e.stopPropagation()
     selectLayer(layer.id)
+
+    // Start drag if not locked
+    if (!layer.locked) {
+      setIsDragging(true)
+      dragStart.current = {
+        pointerX: e.point.x,
+        pointerY: e.point.y,
+        layerX: layer.transform.x,
+        layerY: layer.transform.y,
+      }
+    }
+  }
+
+  // Handle drag move
+  const handlePointerMove = (e: ThreeEvent<PointerEvent>) => {
+    if (!isDragging || !dragStart.current || layer.locked) return
+    e.stopPropagation()
+
+    // Calculate delta in artboard coordinates
+    // Since artboard is scaled by 0.1 when displayed, we need to scale back
+    const scaleFactor = 0.1
+    const deltaX = (e.point.x - dragStart.current.pointerX) / scaleFactor
+    const deltaY = (e.point.y - dragStart.current.pointerY) / scaleFactor
+
+    // Convert to percentage of artboard
+    const deltaXPercent = (deltaX / width) * 100
+    const deltaYPercent = (deltaY / height) * 100
+
+    updateLayer(artboard.id, layer.id, {
+      transform: {
+        ...layer.transform,
+        x: dragStart.current.layerX + deltaXPercent,
+        y: dragStart.current.layerY + deltaYPercent,
+      },
+    })
+  }
+
+  // Handle drag end
+  const handlePointerUp = (e: ThreeEvent<PointerEvent>) => {
+    e.stopPropagation()
+    setIsDragging(false)
+    dragStart.current = null
   }
 
   // Common props for all layer types
@@ -36,7 +89,9 @@ export function LayerRenderer({
     artboardHeight: height,
     zIndex,
     isSelected,
-    onClick: handleClick,
+    onPointerDown: handlePointerDown,
+    onPointerMove: handlePointerMove,
+    onPointerUp: handlePointerUp,
   }
 
   switch (layer.type) {

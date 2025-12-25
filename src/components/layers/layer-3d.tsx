@@ -11,7 +11,9 @@ interface Layer3DProps {
   artboardHeight: number
   zIndex: number
   isSelected: boolean
-  onClick?: (e: ThreeEvent<MouseEvent>) => void
+  onPointerDown?: (e: ThreeEvent<PointerEvent>) => void
+  onPointerMove?: (e: ThreeEvent<PointerEvent>) => void
+  onPointerUp?: (e: ThreeEvent<PointerEvent>) => void
 }
 
 // Shape geometry factory
@@ -136,7 +138,9 @@ export function Layer3D({
   artboardHeight,
   zIndex,
   isSelected,
-  onClick,
+  onPointerDown,
+  onPointerMove,
+  onPointerUp,
 }: Layer3DProps) {
   const meshRef = useRef<THREE.Mesh>(null)
   const { transform, settings, opacity } = layer
@@ -165,7 +169,10 @@ export function Layer3D({
       position={[x, y, zIndex * 0.1 + 50]}
       rotation={[0, 0, (transform.rotation * Math.PI) / 180]}
       scale={[transform.scale * settings.scale, transform.scale * settings.scale, transform.scale * settings.scale]}
-      onClick={onClick}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+      onPointerLeave={onPointerUp}
     >
       {/* Lighting for 3D object */}
       <ambientLight intensity={0.4} />

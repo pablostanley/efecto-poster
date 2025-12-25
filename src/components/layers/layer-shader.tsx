@@ -11,7 +11,9 @@ interface LayerShaderProps {
   artboardHeight: number
   zIndex: number
   isSelected: boolean
-  onClick?: (e: ThreeEvent<MouseEvent>) => void
+  onPointerDown?: (e: ThreeEvent<PointerEvent>) => void
+  onPointerMove?: (e: ThreeEvent<PointerEvent>) => void
+  onPointerUp?: (e: ThreeEvent<PointerEvent>) => void
 }
 
 // Simple mesh gradient shader
@@ -208,7 +210,9 @@ export function LayerShader({
   artboardHeight,
   zIndex,
   isSelected,
-  onClick,
+  onPointerDown,
+  onPointerMove,
+  onPointerUp,
 }: LayerShaderProps) {
   const meshRef = useRef<THREE.Mesh>(null)
   const { transform, settings, opacity } = layer
@@ -244,7 +248,10 @@ export function LayerShader({
       position={[x, y, zIndex * 0.1]}
       rotation={[0, 0, (transform.rotation * Math.PI) / 180]}
       scale={[transform.scale, transform.scale, 1]}
-      onClick={onClick}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+      onPointerLeave={onPointerUp}
     >
       <mesh ref={meshRef} material={shaderMaterial}>
         <planeGeometry args={[artboardWidth, artboardHeight]} />
