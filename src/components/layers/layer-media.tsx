@@ -4,6 +4,7 @@ import { useRef, useEffect, useState } from "react"
 import { ThreeEvent } from "@react-three/fiber"
 import * as THREE from "three"
 import type { LayerMedia as LayerMediaType } from "@/lib/types"
+import { LayerHandles } from "./layer-handles"
 
 interface LayerMediaProps {
   layer: LayerMediaType
@@ -14,6 +15,9 @@ interface LayerMediaProps {
   onPointerDown?: (e: ThreeEvent<PointerEvent>) => void
   onPointerMove?: (e: ThreeEvent<PointerEvent>) => void
   onPointerUp?: (e: ThreeEvent<PointerEvent>) => void
+  onResize?: (deltaScale: number, corner: string) => void
+  onResizeStart?: () => void
+  onResizeEnd?: () => void
 }
 
 export function LayerMedia({
@@ -25,6 +29,9 @@ export function LayerMedia({
   onPointerDown,
   onPointerMove,
   onPointerUp,
+  onResize,
+  onResizeStart,
+  onResizeEnd,
 }: LayerMediaProps) {
   const { transform, settings, opacity } = layer
   const [texture, setTexture] = useState<THREE.Texture | null>(null)
@@ -147,13 +154,15 @@ export function LayerMedia({
         </mesh>
       )}
 
-      {/* Selection indicator */}
-      {isSelected && (
-        <lineSegments position={[0, 0, 0.05]}>
-          <edgesGeometry args={[new THREE.PlaneGeometry(displayWidth + 4, displayHeight + 4)]} />
-          <lineBasicMaterial color="#3b82f6" />
-        </lineSegments>
-      )}
+      {/* Resize handles */}
+      <LayerHandles
+        width={displayWidth}
+        height={displayHeight}
+        isSelected={isSelected}
+        onResize={onResize}
+        onResizeStart={onResizeStart}
+        onResizeEnd={onResizeEnd}
+      />
     </group>
   )
 }

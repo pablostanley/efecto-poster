@@ -4,6 +4,7 @@ import { useRef, useMemo } from "react"
 import { useFrame, ThreeEvent } from "@react-three/fiber"
 import * as THREE from "three"
 import type { LayerShader as LayerShaderType } from "@/lib/types"
+import { LayerHandles } from "./layer-handles"
 
 interface LayerShaderProps {
   layer: LayerShaderType
@@ -14,6 +15,9 @@ interface LayerShaderProps {
   onPointerDown?: (e: ThreeEvent<PointerEvent>) => void
   onPointerMove?: (e: ThreeEvent<PointerEvent>) => void
   onPointerUp?: (e: ThreeEvent<PointerEvent>) => void
+  onResize?: (deltaScale: number, corner: string) => void
+  onResizeStart?: () => void
+  onResizeEnd?: () => void
 }
 
 // Simple mesh gradient shader
@@ -213,6 +217,9 @@ export function LayerShader({
   onPointerDown,
   onPointerMove,
   onPointerUp,
+  onResize,
+  onResizeStart,
+  onResizeEnd,
 }: LayerShaderProps) {
   const meshRef = useRef<THREE.Mesh>(null)
   const { transform, settings, opacity } = layer
@@ -257,13 +264,15 @@ export function LayerShader({
         <planeGeometry args={[artboardWidth, artboardHeight]} />
       </mesh>
 
-      {/* Selection indicator */}
-      {isSelected && (
-        <lineSegments position={[0, 0, 0.05]}>
-          <edgesGeometry args={[new THREE.PlaneGeometry(artboardWidth + 4, artboardHeight + 4)]} />
-          <lineBasicMaterial color="#3b82f6" />
-        </lineSegments>
-      )}
+      {/* Resize handles */}
+      <LayerHandles
+        width={artboardWidth}
+        height={artboardHeight}
+        isSelected={isSelected}
+        onResize={onResize}
+        onResizeStart={onResizeStart}
+        onResizeEnd={onResizeEnd}
+      />
     </group>
   )
 }

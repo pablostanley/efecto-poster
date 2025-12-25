@@ -28,6 +28,7 @@ export function LayerRenderer({
 
   // Drag state
   const [isDragging, setIsDragging] = useState(false)
+  const [isResizing, setIsResizing] = useState(false)
   const dragStart = useRef<{
     pointerX: number
     pointerY: number
@@ -37,6 +38,7 @@ export function LayerRenderer({
 
   // Handle layer click/pointer down
   const handlePointerDown = (e: ThreeEvent<PointerEvent>) => {
+    if (isResizing) return // Don't start drag if resizing
     e.stopPropagation()
     selectLayer(layer.id)
 
@@ -54,7 +56,7 @@ export function LayerRenderer({
 
   // Handle drag move
   const handlePointerMove = (e: ThreeEvent<PointerEvent>) => {
-    if (!isDragging || !dragStart.current || layer.locked) return
+    if (!isDragging || !dragStart.current || layer.locked || isResizing) return
     e.stopPropagation()
 
     // Calculate delta in artboard coordinates
@@ -83,6 +85,18 @@ export function LayerRenderer({
     dragStart.current = null
   }
 
+  // Handle resize
+  const handleResize = (deltaScale: number) => {
+    if (layer.locked) return
+    const newScale = Math.max(0.1, layer.transform.scale + deltaScale)
+    updateLayer(artboard.id, layer.id, {
+      transform: {
+        ...layer.transform,
+        scale: newScale,
+      },
+    })
+  }
+
   // Common props for all layer types
   const commonProps = {
     artboardWidth: width,
@@ -92,6 +106,9 @@ export function LayerRenderer({
     onPointerDown: handlePointerDown,
     onPointerMove: handlePointerMove,
     onPointerUp: handlePointerUp,
+    onResize: handleResize,
+    onResizeStart: () => setIsResizing(true),
+    onResizeEnd: () => setIsResizing(false),
   }
 
   switch (layer.type) {

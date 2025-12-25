@@ -4,6 +4,7 @@ import { useRef } from "react"
 import { useFrame, ThreeEvent } from "@react-three/fiber"
 import * as THREE from "three"
 import type { Layer3D as Layer3DType } from "@/lib/types"
+import { LayerHandles } from "./layer-handles"
 
 interface Layer3DProps {
   layer: Layer3DType
@@ -14,6 +15,9 @@ interface Layer3DProps {
   onPointerDown?: (e: ThreeEvent<PointerEvent>) => void
   onPointerMove?: (e: ThreeEvent<PointerEvent>) => void
   onPointerUp?: (e: ThreeEvent<PointerEvent>) => void
+  onResize?: (deltaScale: number, corner: string) => void
+  onResizeStart?: () => void
+  onResizeEnd?: () => void
 }
 
 // Shape geometry factory
@@ -141,6 +145,9 @@ export function Layer3D({
   onPointerDown,
   onPointerMove,
   onPointerUp,
+  onResize,
+  onResizeStart,
+  onResizeEnd,
 }: Layer3DProps) {
   const meshRef = useRef<THREE.Mesh>(null)
   const { transform, settings, opacity } = layer
@@ -191,18 +198,17 @@ export function Layer3D({
         )}
       </mesh>
 
-      {/* Selection indicator */}
-      {isSelected && (
-        <mesh position={[0, 0, -50]}>
-          <planeGeometry args={[150, 150]} />
-          <meshBasicMaterial
-            color="#3b82f6"
-            transparent
-            opacity={0.1}
-            side={THREE.DoubleSide}
-          />
-        </mesh>
-      )}
+      {/* Resize handles */}
+      <group position={[0, 0, -50]}>
+        <LayerHandles
+          width={150}
+          height={150}
+          isSelected={isSelected}
+          onResize={onResize}
+          onResizeStart={onResizeStart}
+          onResizeEnd={onResizeEnd}
+        />
+      </group>
     </group>
   )
 }

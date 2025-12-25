@@ -4,6 +4,7 @@ import { Text } from "@react-three/drei"
 import { ThreeEvent } from "@react-three/fiber"
 import * as THREE from "three"
 import type { LayerText as LayerTextType } from "@/lib/types"
+import { LayerHandles } from "./layer-handles"
 
 interface LayerTextProps {
   layer: LayerTextType
@@ -14,6 +15,9 @@ interface LayerTextProps {
   onPointerDown?: (e: ThreeEvent<PointerEvent>) => void
   onPointerMove?: (e: ThreeEvent<PointerEvent>) => void
   onPointerUp?: (e: ThreeEvent<PointerEvent>) => void
+  onResize?: (deltaScale: number, corner: string) => void
+  onResizeStart?: () => void
+  onResizeEnd?: () => void
 }
 
 export function LayerText({
@@ -25,6 +29,9 @@ export function LayerText({
   onPointerDown,
   onPointerMove,
   onPointerUp,
+  onResize,
+  onResizeStart,
+  onResizeEnd,
 }: LayerTextProps) {
   const { transform, settings, opacity } = layer
 
@@ -65,18 +72,15 @@ export function LayerText({
         {settings.content}
       </Text>
 
-      {/* Selection indicator */}
-      {isSelected && (
-        <mesh position={[0, 0, 0.05]}>
-          <planeGeometry args={[fontSize * settings.content.length * 0.6, fontSize * 1.2]} />
-          <meshBasicMaterial
-            color="#3b82f6"
-            transparent
-            opacity={0.1}
-            side={THREE.DoubleSide}
-          />
-        </mesh>
-      )}
+      {/* Resize handles */}
+      <LayerHandles
+        width={fontSize * settings.content.length * 0.6}
+        height={fontSize * 1.4}
+        isSelected={isSelected}
+        onResize={onResize}
+        onResizeStart={onResizeStart}
+        onResizeEnd={onResizeEnd}
+      />
     </group>
   )
 }
