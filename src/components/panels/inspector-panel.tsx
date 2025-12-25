@@ -301,6 +301,85 @@ function AlignButton({
   )
 }
 
+// Fill row component (Framer-style)
+function FillRow({
+  color,
+  opacity,
+  visible,
+  onChange,
+  onToggleVisibility,
+  onRemove,
+}: {
+  color: string
+  opacity: number
+  visible: boolean
+  onChange: (color: string) => void
+  onToggleVisibility: () => void
+  onRemove: () => void
+}) {
+  // Convert hex to display format (without #)
+  const hexValue = color.replace("#", "").toUpperCase()
+
+  return (
+    <div className="flex items-center gap-2">
+      {/* Color swatch */}
+      <div className="relative">
+        <input
+          type="color"
+          value={color}
+          onChange={(e) => onChange(e.target.value)}
+          className="w-8 h-8 rounded border cursor-pointer"
+          style={{ backgroundColor: color }}
+        />
+      </div>
+
+      {/* Hex input */}
+      <Input
+        value={hexValue}
+        onChange={(e) => {
+          const val = e.target.value.replace("#", "")
+          if (/^[0-9A-Fa-f]{0,6}$/.test(val)) {
+            onChange(`#${val}`)
+          }
+        }}
+        className="h-8 font-mono text-sm flex-1 uppercase"
+        maxLength={6}
+      />
+
+      {/* Opacity */}
+      <div className="relative w-16">
+        <Input
+          type="number"
+          value={opacity}
+          onChange={() => {}}
+          className="h-8 pr-5 font-mono text-sm text-right"
+          min={0}
+          max={100}
+        />
+        <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">%</span>
+      </div>
+
+      {/* Visibility toggle */}
+      <button
+        onClick={onToggleVisibility}
+        className={cn("p-1 hover:bg-muted rounded", !visible && "opacity-50")}
+        title={visible ? "Hide fill" : "Show fill"}
+      >
+        <Eye className="w-4 h-4" />
+      </button>
+
+      {/* Remove button */}
+      <button
+        onClick={onRemove}
+        className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-foreground"
+        title="Remove fill"
+      >
+        <Minus className="w-4 h-4" />
+      </button>
+    </div>
+  )
+}
+
 function LayerInspector({
   layer,
   artboardId,
@@ -449,30 +528,53 @@ function LayerInspector({
       </CollapsibleSection>
 
       {/* Appearance */}
-      <CollapsibleSection title="Appearance">
+      <CollapsibleSection
+        title="Appearance"
+        action={
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => updateLayer(artboardId, layer.id, { visible: !layer.visible })}
+              className={cn("p-1 hover:bg-muted rounded", !layer.visible && "opacity-50")}
+              title={layer.visible ? "Hide" : "Show"}
+            >
+              <Eye className="w-4 h-4" />
+            </button>
+          </div>
+        }
+      >
         <div className="flex items-center gap-2">
           <div className="relative flex-1">
-            <Eye className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+            <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">Opacity</span>
             <Input
               type="number"
               value={Math.round(layer.opacity * 100)}
               onChange={(e) =>
-                updateLayer(artboardId, layer.id, { opacity: (parseFloat(e.target.value) || 100) / 100 })
+                updateLayer(artboardId, layer.id, { opacity: Math.min(100, Math.max(0, parseFloat(e.target.value) || 100)) / 100 })
               }
-              className="h-8 pl-7 pr-6 font-mono text-sm"
+              className="h-8 pl-14 pr-6 font-mono text-sm text-right"
+              min={0}
+              max={100}
             />
             <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">%</span>
           </div>
         </div>
 
-        <div className="flex items-center justify-between">
-          <Label className="text-xs text-muted-foreground">Visible</Label>
-          <Switch
-            checked={layer.visible}
-            onCheckedChange={(visible) =>
-              updateLayer(artboardId, layer.id, { visible })
-            }
-          />
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1">
+            <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">Radius</span>
+            <Input
+              type="number"
+              value={0}
+              onChange={() => {}}
+              className="h-8 pl-14 font-mono text-sm text-right"
+              min={0}
+            />
+          </div>
+          <button className="p-1.5 hover:bg-muted rounded" title="Individual corners">
+            <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <path d="M2 6V4a2 2 0 012-2h2M10 2h2a2 2 0 012 2v2M14 10v2a2 2 0 01-2 2h-2M6 14H4a2 2 0 01-2-2v-2" />
+            </svg>
+          </button>
         </div>
 
         <div className="flex items-center justify-between">
@@ -484,6 +586,57 @@ function LayerInspector({
             }
           />
         </div>
+      </CollapsibleSection>
+
+      {/* Fill */}
+      <CollapsibleSection
+        title="Fill"
+        action={
+          <button className="p-1 hover:bg-muted rounded" title="Add fill">
+            <Plus className="w-4 h-4" />
+          </button>
+        }
+      >
+        <FillRow
+          color={layer.type === "3d" ? layer.settings.color : layer.type === "text" ? layer.settings.color : "#ffffff"}
+          opacity={100}
+          visible={true}
+          onChange={(color) => {
+            if (layer.type === "3d" || layer.type === "text") {
+              updateLayer(artboardId, layer.id, {
+                settings: { ...layer.settings, color },
+              })
+            }
+          }}
+          onToggleVisibility={() => {}}
+          onRemove={() => {}}
+        />
+      </CollapsibleSection>
+
+      {/* Stroke */}
+      <CollapsibleSection
+        title="Stroke"
+        defaultOpen={false}
+        action={
+          <button className="p-1 hover:bg-muted rounded" title="Add stroke">
+            <Plus className="w-4 h-4" />
+          </button>
+        }
+      >
+        <p className="text-xs text-muted-foreground">No strokes added</p>
+      </CollapsibleSection>
+
+      {/* Effects */}
+      <CollapsibleSection
+        title="Effects"
+        defaultOpen={false}
+        action={
+          <button className="p-1 hover:bg-muted rounded" title="Add effect">
+            <Plus className="w-4 h-4" />
+          </button>
+        }
+      >
+        <p className="text-xs text-muted-foreground">No effects added</p>
       </CollapsibleSection>
 
       {/* Layer-specific settings */}
