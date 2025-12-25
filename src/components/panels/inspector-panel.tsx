@@ -205,7 +205,7 @@ function ArtboardInspector({
   return (
     <>
       {/* Size */}
-      <CollapsibleSection title="Size">
+      <CollapsibleSection title="Layout">
         <div className="grid grid-cols-2 gap-3">
           <div>
             <Label className="text-xs text-muted-foreground">Width</Label>
@@ -233,6 +233,16 @@ function ArtboardInspector({
               className="h-8 mt-1"
             />
           </div>
+        </div>
+
+        <div className="flex items-center justify-between mt-3">
+          <Label className="text-xs text-muted-foreground">Clip content</Label>
+          <Switch
+            checked={artboard.clipContent}
+            onCheckedChange={(clipContent) =>
+              updateArtboard(artboard.id, { clipContent })
+            }
+          />
         </div>
       </CollapsibleSection>
 

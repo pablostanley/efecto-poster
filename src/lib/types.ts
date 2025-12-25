@@ -171,6 +171,7 @@ export interface Artboard {
   position: [number, number]  // Canvas position in world units
   size: { width: number; height: number }  // Pixel dimensions
   backgroundColor: string
+  clipContent: boolean  // Whether to clip layer content to artboard bounds
   layers: Layer[]
   effect: EffectSettings
 }
@@ -320,6 +321,7 @@ export const DEFAULT_ARTBOARD: Omit<Artboard, "id"> = {
   position: [0, 0],
   size: { width: 1920, height: 1080 },
   backgroundColor: "#000000",
+  clipContent: true,
   layers: [],
   effect: DEFAULT_EFFECT_SETTINGS,
 }
