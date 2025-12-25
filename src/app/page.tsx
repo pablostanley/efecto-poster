@@ -7,10 +7,14 @@ import { LayersPanel } from "@/components/panels/layers-panel"
 import { InspectorPanel } from "@/components/panels/inspector-panel"
 import { HeaderToolbar } from "@/components/panels/header-toolbar"
 import { useCanvasStore } from "@/lib/store"
+import { useKeyboardShortcuts } from "@/lib/use-keyboard-shortcuts"
 
 export default function Home() {
   const addArtboard = useCanvasStore((state) => state.addArtboard)
   const artboards = useCanvasStore((state) => state.artboards)
+
+  // Enable keyboard shortcuts
+  useKeyboardShortcuts()
 
   // Create initial artboard on mount
   useEffect(() => {
