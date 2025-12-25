@@ -792,7 +792,7 @@ function LayerTypeSettings({
             value={layer.settings.modelType}
             onValueChange={(value) =>
               updateLayer(artboardId, layer.id, {
-                settings: { ...layer.settings, modelType: value },
+                settings: { ...layer.settings, modelType: value as typeof layer.settings.modelType },
               })
             }
           >
@@ -801,7 +801,7 @@ function LayerTypeSettings({
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="shape">Shape</SelectItem>
-              <SelectItem value="uploaded">Custom Model</SelectItem>
+              <SelectItem value="gltf">Custom Model</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -813,7 +813,7 @@ function LayerTypeSettings({
               value={layer.settings.shape}
               onValueChange={(value) =>
                 updateLayer(artboardId, layer.id, {
-                  settings: { ...layer.settings, shape: value },
+                  settings: { ...layer.settings, shape: value as typeof layer.settings.shape },
                 })
               }
             >
@@ -1042,12 +1042,12 @@ function LayerTypeSettings({
     return (
       <CollapsibleSection title="Shader Settings">
         <div>
-          <Label className="text-xs text-muted-foreground">Preset</Label>
+          <Label className="text-xs text-muted-foreground">Type</Label>
           <Select
-            value={layer.settings.preset}
+            value={layer.settings.type}
             onValueChange={(value) =>
               updateLayer(artboardId, layer.id, {
-                settings: { ...layer.settings, preset: value },
+                settings: { ...layer.settings, type: value as typeof layer.settings.type },
               })
             }
           >
@@ -1077,7 +1077,7 @@ function LayerTypeSettings({
             value={layer.settings.mediaType}
             onValueChange={(value) =>
               updateLayer(artboardId, layer.id, {
-                settings: { ...layer.settings, mediaType: value },
+                settings: { ...layer.settings, mediaType: value as typeof layer.settings.mediaType },
               })
             }
           >
@@ -1094,10 +1094,10 @@ function LayerTypeSettings({
         <div>
           <Label className="text-xs text-muted-foreground">Fit</Label>
           <Select
-            value={layer.settings.fit}
+            value={layer.settings.objectFit}
             onValueChange={(value) =>
               updateLayer(artboardId, layer.id, {
-                settings: { ...layer.settings, fit: value },
+                settings: { ...layer.settings, objectFit: value as typeof layer.settings.objectFit },
               })
             }
           >

@@ -7,6 +7,7 @@ import * as THREE from "three"
 import type { Artboard } from "@/lib/types"
 import { useCanvasStore } from "@/lib/store"
 import { LayerRenderer } from "@/components/layers"
+import { ArtboardEffect } from "./artboard-effect"
 
 interface ArtboardRendererProps {
   artboard: Artboard
@@ -133,7 +134,7 @@ export function ArtboardRenderer({ artboard }: ArtboardRendererProps) {
         </div>
       </Html>
 
-      {/* Clickable/draggable artboard plane */}
+      {/* Clickable/draggable artboard plane with effects */}
       <mesh
         ref={meshRef}
         onPointerDown={handlePointerDown}
@@ -143,7 +144,12 @@ export function ArtboardRenderer({ artboard }: ArtboardRendererProps) {
         scale={[displayWidth, displayHeight, 1]}
       >
         <planeGeometry args={[1, 1]} />
-        <meshBasicMaterial map={renderTarget.texture} />
+        <ArtboardEffect
+          inputTexture={renderTarget.texture}
+          effect={artboard.effect}
+          width={width}
+          height={height}
+        />
       </mesh>
 
       {/* Selection outline - blue border */}
