@@ -89,7 +89,7 @@ function ArtboardItem({
   const addLayer = useCanvasStore((state) => state.addLayer)
   const deleteLayer = useCanvasStore((state) => state.deleteLayer)
   const selectLayer = useCanvasStore((state) => state.selectLayer)
-  const selectedLayerId = useCanvasStore((state) => state.editor.selectedLayerId)
+  const selectedLayerIds = useCanvasStore((state) => state.editor.selectedLayerIds)
   const toggleLayerVisibility = useCanvasStore((state) => state.toggleLayerVisibility)
 
   const layerIcons = {
@@ -167,7 +167,7 @@ function ArtboardItem({
                 key={layer.id}
                 className={cn(
                   "flex items-center gap-1.5 px-2 py-1 rounded text-sm cursor-pointer",
-                  selectedLayerId === layer.id
+                  selectedLayerIds.includes(layer.id)
                     ? "bg-primary/10 text-primary"
                     : "hover:bg-muted/50"
                 )}

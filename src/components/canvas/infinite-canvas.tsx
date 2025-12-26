@@ -1,23 +1,101 @@
 "use client"
 
-import { Canvas } from "@react-three/fiber"
-import { Suspense, useRef } from "react"
+import { Canvas, ThreeEvent } from "@react-three/fiber"
+import { Suspense, useRef, useState, useCallback } from "react"
+import * as THREE from "three"
 import { CanvasCamera } from "./canvas-camera"
 import { CanvasGrid } from "./canvas-grid"
+import { CanvasContextMenu } from "./canvas-context-menu"
+import { MarqueeSelectionHandler } from "./marquee-selection-handler"
 import { ArtboardRenderer } from "../artboard/artboard-renderer"
 import { useCanvasStore, useArtboards, useCanvasSettings } from "@/lib/store"
+
+interface ContextMenuState {
+  x: number
+  y: number
+  type: "layer" | "artboard" | null
+}
 
 export function InfiniteCanvas() {
   const artboards = useArtboards()
   const canvasSettings = useCanvasSettings()
   const containerRef = useRef<HTMLDivElement>(null)
   const selectArtboard = useCanvasStore((state) => state.selectArtboard)
+  const selectLayer = useCanvasStore((state) => state.selectLayer)
+  const selectLayers = useCanvasStore((state) => state.selectLayers)
+  const selectedArtboardId = useCanvasStore((state) => state.editor.selectedArtboardId)
+  const selectedLayerIds = useCanvasStore((state) => state.editor.selectedLayerIds)
+  const tool = useCanvasStore((state) => state.editor.tool)
+
+  const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null)
+
+  const handleContextMenu = useCallback((e: React.MouseEvent) => {
+    e.preventDefault()
+
+    // Determine what type of context menu to show based on selection
+    let menuType: "layer" | "artboard" | null = null
+
+    if (selectedLayerIds.length > 0) {
+      menuType = "layer"
+    } else if (selectedArtboardId) {
+      menuType = "artboard"
+    }
+
+    if (menuType) {
+      setContextMenu({
+        x: e.clientX,
+        y: e.clientY,
+        type: menuType,
+      })
+    }
+  }, [selectedArtboardId, selectedLayerIds])
+
+  const handleCloseContextMenu = useCallback(() => {
+    setContextMenu(null)
+  }, [])
+
+  // Handle selection of artboards from marquee
+  const handleMarqueeSelection = useCallback((bounds: { minX: number; maxX: number; minY: number; maxY: number }) => {
+    // Find artboards within the selection bounds
+    const scaleFactor = 1.0 // Same as in artboard-renderer
+
+    for (const artboard of artboards) {
+      const artboardX = artboard.position[0]
+      const artboardY = artboard.position[1]
+      const halfWidth = (artboard.size.width * scaleFactor) / 2
+      const halfHeight = (artboard.size.height * scaleFactor) / 2
+
+      const artboardMinX = artboardX - halfWidth
+      const artboardMaxX = artboardX + halfWidth
+      const artboardMinY = artboardY - halfHeight
+      const artboardMaxY = artboardY + halfHeight
+
+      // Check if artboard intersects with selection
+      const intersects = !(
+        artboardMaxX < bounds.minX ||
+        artboardMinX > bounds.maxX ||
+        artboardMaxY < bounds.minY ||
+        artboardMinY > bounds.maxY
+      )
+
+      if (intersects) {
+        selectArtboard(artboard.id)
+        selectLayer(null)
+        return // Select first intersecting artboard
+      }
+    }
+
+    // No artboard found - deselect all
+    selectArtboard(null)
+    selectLayer(null)
+  }, [artboards, selectArtboard, selectLayer])
 
   return (
     <div
       ref={containerRef}
-      className="w-full h-full"
+      className="w-full h-full relative"
       style={{ backgroundColor: canvasSettings.backgroundColor }}
+      onContextMenu={handleContextMenu}
     >
       <Canvas
         orthographic
@@ -35,8 +113,10 @@ export function InfiniteCanvas() {
         dpr={[1, 2]}
         style={{ touchAction: "none" }}
         onPointerMissed={() => {
-          // Deselect when clicking empty space
+          // Deselect when clicking empty space (only fires on quick clicks)
           selectArtboard(null)
+          selectLayer(null)
+          handleCloseContextMenu()
         }}
       >
         <color attach="background" args={[canvasSettings.backgroundColor]} />
@@ -44,12 +124,21 @@ export function InfiniteCanvas() {
           <CanvasCamera />
           <CanvasGrid />
 
+          {/* Marquee selection handler */}
+          <MarqueeSelectionHandler
+            enabled={tool === "select"}
+            onSelectionEnd={handleMarqueeSelection}
+          />
+
           {/* Render all artboards */}
           {artboards.map((artboard) => (
             <ArtboardRenderer key={artboard.id} artboard={artboard} />
           ))}
         </Suspense>
       </Canvas>
+
+      {/* Context Menu overlay */}
+      <CanvasContextMenu contextMenu={contextMenu} onClose={handleCloseContextMenu} />
     </div>
   )
 }

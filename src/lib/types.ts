@@ -187,7 +187,7 @@ export interface CameraState {
 
 export interface EditorState {
   selectedArtboardId: string | null
-  selectedLayerId: string | null
+  selectedLayerIds: string[]  // Multi-selection support
   tool: "select" | "pan" | "zoom"
 }
 
@@ -328,12 +328,12 @@ export const DEFAULT_ARTBOARD: Omit<Artboard, "id"> = {
 
 export const DEFAULT_CAMERA: CameraState = {
   position: [0, 0, 100],
-  zoom: 0.1,
+  zoom: 0.5, // 0.5 = fit a 1920px artboard nicely in a ~960px viewport (zoomed out 2x)
 }
 
 export const DEFAULT_EDITOR: EditorState = {
   selectedArtboardId: null,
-  selectedLayerId: null,
+  selectedLayerIds: [],
   tool: "select",
 }
 
@@ -350,4 +350,63 @@ export const DEFAULT_CANVAS_STATE: CanvasState = {
   artboards: [],
   editor: DEFAULT_EDITOR,
   canvas: DEFAULT_CANVAS_SETTINGS,
+}
+
+// ========================================
+// ASCII POSTFX TYPES (for effects)
+// ========================================
+
+export type ColorPalette = "original" | "green" | "amber" | "cyan" | "blue"
+
+export interface AsciiPostFXSettings {
+  preset: string
+  scanlineIntensity: number
+  scanlineCount: number
+  targetFPS: number
+  jitterIntensity: number
+  jitterSpeed: number
+  mouseGlowEnabled: boolean
+  mouseGlowRadius: number
+  mouseGlowIntensity: number
+  vignetteIntensity: number
+  vignetteRadius: number
+  colorPalette: ColorPalette
+  curvature: number
+  aberrationStrength: number
+  noiseIntensity: number
+  noiseScale: number
+  noiseSpeed: number
+  waveAmplitude: number
+  waveFrequency: number
+  waveSpeed: number
+  glitchIntensity: number
+  glitchFrequency: number
+  brightnessAdjust: number
+  contrastAdjust: number
+}
+
+// Type aliases for effects (with additional properties for canvas fallback)
+export interface DitherEffectSettings extends DitherSettings {
+  pattern?: string
+  pixelation?: number
+  threshold?: number
+}
+export type HalftoneEffectSettings = HalftoneSettings
+export type SinewarpEffectSettings = SinewarpSettings
+// InputShaderSettings for shader components with extended options
+export interface InputShaderSettings extends LayerShaderSettings {
+  // Shader-specific nested settings
+  blackHole?: {
+    animate?: boolean
+    speed?: number
+    scale?: number
+    diskIntensity?: number
+    warpStrength?: number
+    colorShift?: number
+    glowIntensity?: number
+    rotationSpeed?: number
+  }
+  // Allow other shader-specific settings
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  [key: string]: any
 }
