@@ -1,14 +1,31 @@
 "use client"
 
-import { Canvas, ThreeEvent } from "@react-three/fiber"
-import { Suspense, useRef, useState, useCallback } from "react"
+import { Canvas, ThreeEvent, useThree } from "@react-three/fiber"
+import { Suspense, useRef, useState, useCallback, useEffect } from "react"
 import * as THREE from "three"
 import { CanvasCamera } from "./canvas-camera"
 import { CanvasGrid } from "./canvas-grid"
 import { CanvasContextMenu } from "./canvas-context-menu"
 import { MarqueeSelectionHandler } from "./marquee-selection-handler"
+import { MoveableOverlay } from "./moveable-overlay"
 import { ArtboardRenderer } from "../artboard/artboard-renderer"
 import { useCanvasStore, useArtboards, useCanvasSettings } from "@/lib/store"
+
+/**
+ * Helper component to extract the canvas DOM element from R3F context.
+ * Must be rendered inside Canvas.
+ */
+function CanvasRefExtractor({
+  onRef,
+}: {
+  onRef: (element: HTMLCanvasElement) => void
+}) {
+  const { gl } = useThree()
+  useEffect(() => {
+    onRef(gl.domElement)
+  }, [gl, onRef])
+  return null
+}
 
 interface ContextMenuState {
   x: number
@@ -26,6 +43,9 @@ export function InfiniteCanvas() {
   const selectedArtboardId = useCanvasStore((state) => state.editor.selectedArtboardId)
   const selectedLayerIds = useCanvasStore((state) => state.editor.selectedLayerIds)
   const tool = useCanvasStore((state) => state.editor.tool)
+
+  // Canvas element for coordinate conversions in moveable overlay
+  const [canvasElement, setCanvasElement] = useState<HTMLCanvasElement | null>(null)
 
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null)
 
@@ -119,6 +139,9 @@ export function InfiniteCanvas() {
           handleCloseContextMenu()
         }}
       >
+        {/* Extract canvas DOM element for moveable overlay */}
+        <CanvasRefExtractor onRef={setCanvasElement} />
+
         <color attach="background" args={[canvasSettings.backgroundColor]} />
         <Suspense fallback={null}>
           <CanvasCamera />
@@ -136,6 +159,9 @@ export function InfiniteCanvas() {
           ))}
         </Suspense>
       </Canvas>
+
+      {/* Moveable overlay for selection/transform handles (HTML-based, zoom-invariant) */}
+      <MoveableOverlay canvasElement={canvasElement} />
 
       {/* Context Menu overlay */}
       <CanvasContextMenu contextMenu={contextMenu} onClose={handleCloseContextMenu} />

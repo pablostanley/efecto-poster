@@ -142,3 +142,45 @@
     @apply text-foreground;
   }
 }
+
+/* react-moveable selection handles styling */
+.moveable-control-box {
+  --moveable-color: #3b82f6;
+}
+
+.moveable-line {
+  background: #3b82f6 !important;
+  height: 1px !important;
+}
+
+.moveable-control {
+  background: #ffffff !important;
+  border: 2px solid #3b82f6 !important;
+  border-radius: 50% !important;
+  width: 10px !important;
+  height: 10px !important;
+  margin-top: -5px !important;
+  margin-left: -5px !important;
+}
+
+/* Rotation handle */
+.moveable-rotation .moveable-control {
+  background: #ffffff !important;
+  border-color: #3b82f6 !important;
+}
+
+.moveable-rotation-line {
+  background: #3b82f6 !important;
+  width: 1px !important;
+  height: 20px !important;
+}
+
+/* Direction lines on edges */
+.moveable-direction {
+  background: #3b82f6 !important;
+}
+
+/* Hide the origin point */
+.moveable-origin {
+  display: none !important;
+}

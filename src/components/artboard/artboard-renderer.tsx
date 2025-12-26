@@ -8,8 +8,6 @@ import type { Artboard, EffectSettings } from "@/lib/types"
 import { useCanvasStore } from "@/lib/store"
 import { LayerRenderer } from "@/components/layers"
 import { ArtboardEffect } from "./artboard-effect"
-import { SelectionHandles } from "@/components/canvas/selection-handles"
-import { LayerHandles } from "@/components/layers/layer-handles"
 
 interface ArtboardRendererProps {
   artboard: Artboard
@@ -584,32 +582,16 @@ export function ArtboardRenderer({ artboard }: ArtboardRendererProps) {
         </lineSegments>
       )}
 
-      {/* Selection handles (includes border) - only show when artboard is selected but NO layer is selected */}
-      <SelectionHandles
-        width={displayWidth}
-        height={displayHeight}
-        position={[0, 0, 0]}
-        isSelected={isSelected && selectedLayerIds.length === 0}
-        onResizeStart={() => saveToHistory()}
-        onResize={(deltaWidth, deltaHeight) => {
-          // Convert from display coordinates back to pixel dimensions
-          const pixelDeltaWidth = deltaWidth / scaleFactor
-          const pixelDeltaHeight = deltaHeight / scaleFactor
-
-          const newWidth = Math.max(100, artboard.size.width + pixelDeltaWidth)
-          const newHeight = Math.max(100, artboard.size.height + pixelDeltaHeight)
-
-          updateArtboard(artboard.id, {
-            size: {
-              width: Math.round(newWidth),
-              height: Math.round(newHeight),
-            },
-          })
-        }}
-      />
-
-      {/* Layer handles - rendered OUTSIDE FBO so effects don't apply */}
-      <SelectedLayerHandles artboard={artboard} scaleFactor={scaleFactor} />
+      {/* Selection border when artboard is selected */}
+      {isSelected && selectedLayerIds.length === 0 && (
+        <lineSegments
+          scale={[displayWidth, displayHeight, 1]}
+          position={[0, 0, 0.1]}
+        >
+          <edgesGeometry args={[new THREE.PlaneGeometry(1, 1)]} />
+          <lineBasicMaterial color="#3b82f6" linewidth={2} />
+        </lineSegments>
+      )}
 
       {/* Portal for artboard content - renders to the FBO scene */}
       {createPortal(
@@ -649,87 +631,4 @@ function ArtboardContent({ artboard }: { artboard: Artboard }) {
   )
 }
 
-// Layer handles rendered OUTSIDE FBO so effects don't apply
-function SelectedLayerHandles({ artboard, scaleFactor }: { artboard: Artboard; scaleFactor: number }) {
-  const selectedLayerIds = useCanvasStore((state) => state.editor.selectedLayerIds)
-  const updateLayer = useCanvasStore((state) => state.updateLayer)
-  const saveToHistory = useCanvasStore((state) => state._saveToHistory)
-
-  const { width, height } = artboard.size
-
-  // Find selected layers in this artboard
-  const selectedLayers = artboard.layers.filter(
-    (l) => selectedLayerIds.includes(l.id) && l.visible
-  )
-
-  if (selectedLayers.length === 0) return null
-
-  // Helper to calculate layer dimensions based on type
-  const getLayerDimensions = (layer: typeof selectedLayers[0]) => {
-    let layerWidth = 100
-    let layerHeight = 100
-
-    switch (layer.type) {
-      case "3d":
-        layerWidth = 150
-        layerHeight = 150
-        break
-      case "text":
-        layerWidth = 200
-        layerHeight = 60
-        break
-      case "shader":
-        layerWidth = width
-        layerHeight = height
-        break
-      case "media":
-        layerWidth = width * 0.8
-        layerHeight = height * 0.8
-        break
-    }
-
-    return {
-      displayWidth: layerWidth * layer.transform.scale * scaleFactor,
-      displayHeight: layerHeight * layer.transform.scale * scaleFactor,
-    }
-  }
-
-  const handleResize = (layer: typeof selectedLayers[0]) => (deltaScale: number) => {
-    if (layer.locked) return
-    const newScale = Math.max(0.1, layer.transform.scale + deltaScale)
-    updateLayer(artboard.id, layer.id, {
-      transform: {
-        ...layer.transform,
-        scale: newScale,
-      },
-    })
-  }
-
-  return (
-    <>
-      {selectedLayers.map((layer, index) => {
-        const layerX = (layer.transform.x / 100) * width * scaleFactor
-        const layerY = (layer.transform.y / 100) * height * scaleFactor
-        const { displayWidth, displayHeight } = getLayerDimensions(layer)
-
-        return (
-          <group
-            key={layer.id}
-            position={[layerX, layerY, 10 + index * 0.1]}
-            rotation={[0, 0, (layer.transform.rotation * Math.PI) / 180]}
-          >
-            <LayerHandles
-              width={displayWidth}
-              height={displayHeight}
-              isSelected={true}
-              onResize={handleResize(layer)}
-              onResizeStart={() => saveToHistory()}
-              onResizeEnd={() => {}}
-            />
-          </group>
-        )
-      })}
-    </>
-  )
-}
 
