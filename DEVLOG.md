@@ -290,6 +290,12 @@ src/
   - Layer handles show for all selected layers
   - Context menus show count and operate on all selected
   - Clipboard supports multiple layers
+- **Multi-selection inspector panel**:
+  - Shows layer count and type summary in header ("3 layers selected", "1 3d, 2 text")
+  - Align tools: left, center, right, top, middle, bottom
+  - Position offset controls for batch moving (ΔX, ΔY)
+  - Shared properties with "Mixed" indicator (opacity, visibility, lock)
+  - Selection info list showing all selected layers
 
 ### December 25, 2024 (Session 1)
 - Fixed canvas zoom/scale system (scaleFactor 0.1→1.0, zoom 0.1→0.5)
