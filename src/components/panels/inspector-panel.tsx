@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { useSelectedArtboard, useSelectedLayer, useCanvasStore, useCanvasSettings } from "@/lib/store"
+import { useSelectedArtboard, useSelectedLayer, useSelectedLayers, useSelectedLayerIds, useCanvasStore, useCanvasSettings } from "@/lib/store"
 import { Label } from "@/components/ui/label"
 import { Slider } from "@/components/ui/slider"
 import { Switch } from "@/components/ui/switch"
@@ -56,20 +56,20 @@ function CollapsibleSection({
 
   return (
     <div className="border-b">
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 w-full px-4 py-2.5 hover:bg-muted/50 transition-colors"
-      >
-        {isOpen ? (
-          <CaretDown className="w-3 h-3" />
-        ) : (
-          <CaretRight className="w-3 h-3" />
-        )}
-        <span className="text-sm font-medium flex-1 text-left">{title}</span>
-        {action && (
-          <div onClick={(e) => e.stopPropagation()}>{action}</div>
-        )}
-      </button>
+      <div className="flex items-center gap-2 w-full px-4 py-2.5 hover:bg-muted/50 transition-colors">
+        <button
+          onClick={() => setIsOpen(!isOpen)}
+          className="flex items-center gap-2 flex-1 text-left"
+        >
+          {isOpen ? (
+            <CaretDown className="w-3 h-3" />
+          ) : (
+            <CaretRight className="w-3 h-3" />
+          )}
+          <span className="text-sm font-medium">{title}</span>
+        </button>
+        {action}
+      </div>
       {isOpen && <div className="px-4 pb-4 space-y-3">{children}</div>}
     </div>
   )
@@ -78,9 +78,12 @@ function CollapsibleSection({
 export function InspectorPanel() {
   const selectedArtboard = useSelectedArtboard()
   const selectedLayer = useSelectedLayer()
+  const selectedLayers = useSelectedLayers()
+  const selectedLayerIds = useSelectedLayerIds()
+  const hasMultipleSelected = selectedLayerIds.length > 1
 
   // No selection - show canvas options
-  if (!selectedArtboard && !selectedLayer) {
+  if (!selectedArtboard && selectedLayerIds.length === 0) {
     return (
       <div className="flex flex-col h-full overflow-y-auto">
         <div className="p-4 border-b shrink-0">
@@ -88,6 +91,21 @@ export function InspectorPanel() {
           <p className="text-xs text-muted-foreground mt-0.5">File settings</p>
         </div>
         <CanvasInspector />
+      </div>
+    )
+  }
+
+  // Multi-selection header and inspector
+  if (hasMultipleSelected && selectedArtboard) {
+    return (
+      <div className="flex flex-col h-full overflow-y-auto">
+        <div className="p-4 border-b shrink-0">
+          <h2 className="text-sm font-medium">{selectedLayerIds.length} layers selected</h2>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            {getLayerTypeSummary(selectedLayers)}
+          </p>
+        </div>
+        <MultiLayerInspector layers={selectedLayers} artboardId={selectedArtboard.id} />
       </div>
     )
   }
@@ -111,6 +129,265 @@ export function InspectorPanel() {
         <ArtboardInspector artboard={selectedArtboard} />
       ) : null}
     </div>
+  )
+}
+
+// Helper to summarize layer types in selection
+function getLayerTypeSummary(layers: Layer[]): string {
+  const typeCounts: Record<string, number> = {}
+  layers.forEach((layer) => {
+    typeCounts[layer.type] = (typeCounts[layer.type] || 0) + 1
+  })
+  return Object.entries(typeCounts)
+    .map(([type, count]) => `${count} ${type}`)
+    .join(", ")
+}
+
+// Multi-layer inspector for batch editing
+function MultiLayerInspector({
+  layers,
+  artboardId,
+}: {
+  layers: Layer[]
+  artboardId: string
+}) {
+  const updateLayer = useCanvasStore((state) => state.updateLayer)
+  const saveToHistory = useCanvasStore((state) => state._saveToHistory)
+
+  // Check if all layers have the same value for a property
+  const allSameVisibility = layers.every((l) => l.visible === layers[0].visible)
+  const allSameLocked = layers.every((l) => l.locked === layers[0].locked)
+  const allSameOpacity = layers.every((l) => l.opacity === layers[0].opacity)
+
+  // Batch update all selected layers
+  const updateAllLayers = (updates: Partial<Omit<Layer, "id" | "type">>) => {
+    saveToHistory()
+    layers.forEach((layer) => {
+      updateLayer(artboardId, layer.id, updates)
+    })
+  }
+
+  // Move all layers by delta
+  const moveAllLayers = (deltaX: number, deltaY: number) => {
+    saveToHistory()
+    layers.forEach((layer) => {
+      updateLayer(artboardId, layer.id, {
+        transform: {
+          ...layer.transform,
+          x: layer.transform.x + deltaX,
+          y: layer.transform.y + deltaY,
+        },
+      })
+    })
+  }
+
+  return (
+    <>
+      {/* Alignment */}
+      <CollapsibleSection title="Align & Distribute">
+        <div className="space-y-2">
+          <Label className="text-xs text-muted-foreground">Align</Label>
+          <div className="flex items-center gap-1 justify-between">
+            <div className="flex items-center bg-muted/50 rounded p-0.5">
+              <AlignButton
+                icon={ArrowLineLeft}
+                onClick={() => {
+                  const minX = Math.min(...layers.map((l) => l.transform.x))
+                  saveToHistory()
+                  layers.forEach((layer) => {
+                    updateLayer(artboardId, layer.id, {
+                      transform: { ...layer.transform, x: minX },
+                    })
+                  })
+                }}
+                title="Align left edges"
+              />
+              <AlignButton
+                icon={ArrowsHorizontal}
+                onClick={() => {
+                  const avgX = layers.reduce((sum, l) => sum + l.transform.x, 0) / layers.length
+                  saveToHistory()
+                  layers.forEach((layer) => {
+                    updateLayer(artboardId, layer.id, {
+                      transform: { ...layer.transform, x: avgX },
+                    })
+                  })
+                }}
+                title="Align centers horizontally"
+              />
+              <AlignButton
+                icon={ArrowLineRight}
+                onClick={() => {
+                  const maxX = Math.max(...layers.map((l) => l.transform.x))
+                  saveToHistory()
+                  layers.forEach((layer) => {
+                    updateLayer(artboardId, layer.id, {
+                      transform: { ...layer.transform, x: maxX },
+                    })
+                  })
+                }}
+                title="Align right edges"
+              />
+            </div>
+            <div className="flex items-center bg-muted/50 rounded p-0.5">
+              <AlignButton
+                icon={ArrowLineUp}
+                onClick={() => {
+                  const maxY = Math.max(...layers.map((l) => l.transform.y))
+                  saveToHistory()
+                  layers.forEach((layer) => {
+                    updateLayer(artboardId, layer.id, {
+                      transform: { ...layer.transform, y: maxY },
+                    })
+                  })
+                }}
+                title="Align top edges"
+              />
+              <AlignButton
+                icon={ArrowsVertical}
+                onClick={() => {
+                  const avgY = layers.reduce((sum, l) => sum + l.transform.y, 0) / layers.length
+                  saveToHistory()
+                  layers.forEach((layer) => {
+                    updateLayer(artboardId, layer.id, {
+                      transform: { ...layer.transform, y: avgY },
+                    })
+                  })
+                }}
+                title="Align centers vertically"
+              />
+              <AlignButton
+                icon={ArrowLineDown}
+                onClick={() => {
+                  const minY = Math.min(...layers.map((l) => l.transform.y))
+                  saveToHistory()
+                  layers.forEach((layer) => {
+                    updateLayer(artboardId, layer.id, {
+                      transform: { ...layer.transform, y: minY },
+                    })
+                  })
+                }}
+                title="Align bottom edges"
+              />
+            </div>
+          </div>
+        </div>
+      </CollapsibleSection>
+
+      {/* Position offset */}
+      <CollapsibleSection title="Position Offset">
+        <p className="text-xs text-muted-foreground mb-2">
+          Move all selected layers relative to their current position
+        </p>
+        <div className="grid grid-cols-2 gap-2">
+          <div className="relative">
+            <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">ΔX</span>
+            <Input
+              type="number"
+              defaultValue={0}
+              onBlur={(e) => {
+                const delta = parseFloat(e.target.value) || 0
+                if (delta !== 0) {
+                  moveAllLayers(delta, 0)
+                  e.target.value = "0"
+                }
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  const delta = parseFloat((e.target as HTMLInputElement).value) || 0
+                  if (delta !== 0) {
+                    moveAllLayers(delta, 0)
+                    ;(e.target as HTMLInputElement).value = "0"
+                  }
+                }
+              }}
+              className="h-8 pl-7 font-mono text-sm"
+            />
+          </div>
+          <div className="relative">
+            <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">ΔY</span>
+            <Input
+              type="number"
+              defaultValue={0}
+              onBlur={(e) => {
+                const delta = parseFloat(e.target.value) || 0
+                if (delta !== 0) {
+                  moveAllLayers(0, delta)
+                  e.target.value = "0"
+                }
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  const delta = parseFloat((e.target as HTMLInputElement).value) || 0
+                  if (delta !== 0) {
+                    moveAllLayers(0, delta)
+                    ;(e.target as HTMLInputElement).value = "0"
+                  }
+                }
+              }}
+              className="h-8 pl-7 font-mono text-sm"
+            />
+          </div>
+        </div>
+      </CollapsibleSection>
+
+      {/* Appearance */}
+      <CollapsibleSection title="Appearance">
+        {/* Opacity - only show if all same or mixed indicator */}
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1">
+            <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">Opacity</span>
+            <Input
+              type="number"
+              value={allSameOpacity ? Math.round(layers[0].opacity * 100) : ""}
+              placeholder={!allSameOpacity ? "Mixed" : undefined}
+              onChange={(e) => {
+                const opacity = Math.min(100, Math.max(0, parseFloat(e.target.value) || 100)) / 100
+                updateAllLayers({ opacity })
+              }}
+              className="h-8 pl-14 pr-6 font-mono text-sm text-right"
+              min={0}
+              max={100}
+            />
+            <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">%</span>
+          </div>
+        </div>
+
+        {/* Visibility toggle */}
+        <div className="flex items-center justify-between">
+          <Label className="text-xs text-muted-foreground">
+            Visible {!allSameVisibility && <span className="text-amber-500">(mixed)</span>}
+          </Label>
+          <Switch
+            checked={allSameVisibility ? layers[0].visible : true}
+            onCheckedChange={(visible) => updateAllLayers({ visible })}
+          />
+        </div>
+
+        {/* Lock toggle */}
+        <div className="flex items-center justify-between">
+          <Label className="text-xs text-muted-foreground">
+            Locked {!allSameLocked && <span className="text-amber-500">(mixed)</span>}
+          </Label>
+          <Switch
+            checked={allSameLocked ? layers[0].locked : false}
+            onCheckedChange={(locked) => updateAllLayers({ locked })}
+          />
+        </div>
+      </CollapsibleSection>
+
+      {/* Info */}
+      <CollapsibleSection title="Selection Info" defaultOpen={false}>
+        <div className="space-y-1 text-xs text-muted-foreground">
+          {layers.map((layer) => (
+            <div key={layer.id} className="flex items-center justify-between py-0.5">
+              <span className="truncate">{layer.name}</span>
+              <span className="text-[10px] bg-muted px-1.5 py-0.5 rounded">{layer.type}</span>
+            </div>
+          ))}
+        </div>
+      </CollapsibleSection>
+    </>
   )
 }
 
@@ -197,6 +474,21 @@ function CanvasInspector() {
   )
 }
 
+// Artboard size presets
+const SIZE_PRESETS = [
+  { name: "Custom", width: 0, height: 0 },
+  { name: "Instagram Post", width: 1080, height: 1080 },
+  { name: "Instagram Story", width: 1080, height: 1920 },
+  { name: "Twitter Post", width: 1200, height: 675 },
+  { name: "Facebook Post", width: 1200, height: 630 },
+  { name: "LinkedIn Post", width: 1200, height: 627 },
+  { name: "YouTube Thumbnail", width: 1280, height: 720 },
+  { name: "Desktop HD", width: 1920, height: 1080 },
+  { name: "Desktop 4K", width: 3840, height: 2160 },
+  { name: "Mobile", width: 375, height: 812 },
+  { name: "Tablet", width: 768, height: 1024 },
+]
+
 function ArtboardInspector({
   artboard,
 }: {
@@ -204,10 +496,46 @@ function ArtboardInspector({
 }) {
   const updateArtboard = useCanvasStore((state) => state.updateArtboard)
 
+  // Find matching preset
+  const currentPreset = SIZE_PRESETS.find(
+    (p) => p.width === artboard.size.width && p.height === artboard.size.height
+  )?.name || "Custom"
+
+  const handlePresetChange = (presetName: string) => {
+    const preset = SIZE_PRESETS.find((p) => p.name === presetName)
+    if (preset && preset.width > 0) {
+      updateArtboard(artboard.id, {
+        size: { width: preset.width, height: preset.height },
+      })
+    }
+  }
+
   return (
     <>
       {/* Size */}
       <CollapsibleSection title="Layout">
+        {/* Size preset dropdown */}
+        <div>
+          <Label className="text-xs text-muted-foreground">Preset</Label>
+          <Select value={currentPreset} onValueChange={handlePresetChange}>
+            <SelectTrigger className="h-8 mt-1">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {SIZE_PRESETS.map((preset) => (
+                <SelectItem key={preset.name} value={preset.name}>
+                  {preset.name}
+                  {preset.width > 0 && (
+                    <span className="text-muted-foreground ml-2">
+                      {preset.width}×{preset.height}
+                    </span>
+                  )}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
         <div className="grid grid-cols-2 gap-3">
           <div>
             <Label className="text-xs text-muted-foreground">Width</Label>
@@ -312,35 +640,87 @@ function ExportSection({
 }) {
   const [exportScale, setExportScale] = useState(1)
   const [exportFormat, setExportFormat] = useState<"png" | "jpg" | "webp">("png")
+  const [isExporting, setIsExporting] = useState(false)
+  const exportArtboard = useCanvasStore((state) => state.exportArtboard)
 
-  const handleExport = () => {
-    // Get the canvas element
-    const canvas = document.querySelector("canvas")
-    if (!canvas) return
+  const handleExport = async () => {
+    setIsExporting(true)
+    try {
+      // Use the registered exporter for this artboard
+      const blob = await exportArtboard(artboard.id)
+      if (!blob) {
+        console.error("Failed to export artboard")
+        return
+      }
 
-    // Create a temporary canvas at the export resolution
-    const exportCanvas = document.createElement("canvas")
-    const ctx = exportCanvas.getContext("2d")
-    if (!ctx) return
+      // If scale is not 1x, resize the image
+      if (exportScale !== 1) {
+        const img = new Image()
+        const url = URL.createObjectURL(blob)
+        img.src = url
 
-    const exportWidth = artboard.size.width * exportScale
-    const exportHeight = artboard.size.height * exportScale
+        await new Promise((resolve) => {
+          img.onload = resolve
+        })
 
-    exportCanvas.width = exportWidth
-    exportCanvas.height = exportHeight
+        const exportWidth = artboard.size.width * exportScale
+        const exportHeight = artboard.size.height * exportScale
 
-    // For now, capture the current canvas
-    // In a full implementation, we'd render the specific artboard
-    ctx.drawImage(canvas, 0, 0, exportWidth, exportHeight)
+        const exportCanvas = document.createElement("canvas")
+        exportCanvas.width = exportWidth
+        exportCanvas.height = exportHeight
+        const ctx = exportCanvas.getContext("2d")!
+        ctx.drawImage(img, 0, 0, exportWidth, exportHeight)
 
-    // Convert to data URL and download
-    const mimeType = exportFormat === "jpg" ? "image/jpeg" : exportFormat === "webp" ? "image/webp" : "image/png"
-    const dataUrl = exportCanvas.toDataURL(mimeType, 0.95)
+        URL.revokeObjectURL(url)
 
+        const mimeType = exportFormat === "jpg" ? "image/jpeg" : exportFormat === "webp" ? "image/webp" : "image/png"
+        exportCanvas.toBlob((scaledBlob) => {
+          if (scaledBlob) {
+            downloadBlob(scaledBlob)
+          }
+        }, mimeType, 0.95)
+      } else {
+        // Convert to correct format if needed
+        if (exportFormat !== "png") {
+          const img = new Image()
+          const url = URL.createObjectURL(blob)
+          img.src = url
+
+          await new Promise((resolve) => {
+            img.onload = resolve
+          })
+
+          const exportCanvas = document.createElement("canvas")
+          exportCanvas.width = artboard.size.width
+          exportCanvas.height = artboard.size.height
+          const ctx = exportCanvas.getContext("2d")!
+          ctx.drawImage(img, 0, 0)
+
+          URL.revokeObjectURL(url)
+
+          const mimeType = exportFormat === "jpg" ? "image/jpeg" : "image/webp"
+          exportCanvas.toBlob((convertedBlob) => {
+            if (convertedBlob) {
+              downloadBlob(convertedBlob)
+            }
+          }, mimeType, 0.95)
+        } else {
+          downloadBlob(blob)
+        }
+      }
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
+  const downloadBlob = (blob: Blob) => {
+    const url = URL.createObjectURL(blob)
     const link = document.createElement("a")
     link.download = `${artboard.name.replace(/\s+/g, "-").toLowerCase()}.${exportFormat}`
-    link.href = dataUrl
+    link.href = url
     link.click()
+    URL.revokeObjectURL(url)
   }
 
   return (
@@ -395,10 +775,11 @@ function ExportSection({
       {/* Export button */}
       <button
         onClick={handleExport}
-        className="w-full h-9 bg-primary text-primary-foreground rounded-md text-sm font-medium flex items-center justify-center gap-2 hover:bg-primary/90 transition-colors"
+        disabled={isExporting}
+        className="w-full h-9 bg-primary text-primary-foreground rounded-md text-sm font-medium flex items-center justify-center gap-2 hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
       >
         <Download className="w-4 h-4" />
-        Export {artboard.name}
+        {isExporting ? "Exporting..." : `Export ${artboard.name}`}
       </button>
     </div>
   )
@@ -411,7 +792,7 @@ function AlignButton({
   onClick,
   title,
 }: {
-  icon: React.ElementType
+  icon: React.ComponentType<{ className?: string }>
   active?: boolean
   onClick: () => void
   title: string
